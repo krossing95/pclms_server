@@ -4,21 +4,22 @@ import RequestBodyChecker from "../../helpers/helper.request_checker.js"
 import AuthQuery from "../../queries/query.auth.js"
 import AuthValidations from "../../validators/auth/validator.auth.js"
 import StringManipulators from "../../helpers/helper.string_methods.js"
-import { genSaltSync, hashSync } from "bcrypt"
+import { compareSync, genSaltSync, hashSync } from "bcrypt"
 import * as JWT from 'jsonwebtoken'
 import needle from "needle"
 import RequestInformation from "../../helpers/helper.request_sender.js"
 import moment from "moment"
 import { Regex } from "../../utils/static/index.js"
+import BotActionChecker from "../../helpers/helper.google_captcha.js"
 
 export default function AuthController() {
     const WSWW = 'Whoops! Something went wrong'
     const { isTrueBodyStructure } = RequestBodyChecker()
-    const { validateRegistration } = AuthValidations()
+    const { validateRegistration, loginValidator } = AuthValidations()
     const { cleanSCW, cleanExcessWhiteSpaces } = StringManipulators()
     const { pool } = DatabaseConnection()
     const { MONGOOBJECT, NUMERICAL } = Regex
-    const { CHECKUSERINSTANCE, CREATEUSER, GETUSER } = AuthQuery()
+    const { CHECKUSERINSTANCE, CREATEUSER, GETUSER, GETPHONE } = AuthQuery()
     const SALT = genSaltSync(10)
     const { sign } = JWT.default
 
@@ -42,7 +43,7 @@ export default function AuthController() {
                 const save = await pool.query(CREATEUSER, [id, firstname, lastname, email, phone, password, timestamp])
                 if (save.rowCount === 0) return res.status(412).json({ message: 'Account could not be created', code: '412', data: {} })
                 const data = {
-                    expiry: 10, length: 6, medium: 'sms', message: `Dear ${lastname}, the OTP for your account verification is %otp_code% to verify your account. NOTE: OTP will expire in %expiry% minutes`,
+                    expiry: 10, length: 6, medium: 'sms', message: `Dear ${lastname}, the OTP for your account verification is %otp_code%. NOTE: OTP will expire in %expiry% minutes`,
                     number: `233${parseInt(phone)}`, sender_id: process.env.LMS_MESSENGER_NAME, type: 'numeric',
                 }
                 const sendOTP = await needle(
@@ -89,7 +90,7 @@ export default function AuthController() {
             if (diff > 5) return res.status(401).json({ message: 'Not eligible to request for OTP', code: '401', data: {} })
             if (request_info.id !== user_id) return res.status(401).json({ message: 'Not eligible to request for OTP', code: '401', data: {} })
             const sms_data = {
-                expiry: 10, length: 6, medium: 'sms', message: `Dear ${data.lastname}, the OTP for your account verification is %otp_code% to verify your account. NOTE: OTP will expire in %expiry% minutes`,
+                expiry: 10, length: 6, medium: 'sms', message: `Dear ${data.lastname}, kindly use the code; %otp_code% for your authentication. NOTE: OTP will expire in %expiry% minutes`,
                 number: `233${parseInt(data.phone)}`, sender_id: process.env.LMS_MESSENGER_NAME, type: 'numeric',
             }
             const reSendOTP = await needle(
@@ -143,7 +144,53 @@ export default function AuthController() {
         }
     }
 
+    const login = async (req, res) => {
+        let { phone, password, captcha } = req.body
+        const expected_payload = ['phone', 'password', 'captcha']
+        const checkPayload = isTrueBodyStructure(req.body, expected_payload)
+        if (!checkPayload) return res.status(400).json({ message: 'Bad request', code: '400', data: {} })
+        if (captcha.length === 0) return res.status(400).json({ message: 'Bad request', code: '400', data: {} })
+        return await BotActionChecker(req, captcha, () => {
+            const validate = loginValidator(phone, password, async () => {
+                try {
+                    phone = cleanExcessWhiteSpaces(phone)
+                    const checkPhone = await pool.query(GETPHONE, [phone])
+                    if (checkPhone.rowCount === 0) return register.status(412).json({ message: 'No user found', code: '412', data: {} })
+                    const user = checkPhone.rows[0]
+                    const isUsersPassword = compareSync(password, user.password)
+                    if (!isUsersPassword) return res.status(412).json({ message: 'Incorrect credentials', code: '412', data: {} })
+                    const data = {
+                        expiry: 10, length: 6, medium: 'sms', message: `Dear ${user.lastname}, kindly use the code; %otp_code% for your authentication. NOTE: OTP will expire in %expiry% minutes`,
+                        number: `233${parseInt(phone)}`, sender_id: process.env.LMS_MESSENGER_NAME, type: 'numeric',
+                    }
+                    const sendOTP = await needle(
+                        "post", process.env.LMS_OTP_GENERATION_URL,
+                        data, {
+                        headers: {
+                            'api-key': process.env.LMS_MESSENGER_API_KEY,
+                            'Content-Type': 'application/json'
+                        }
+                    })
+                    if (sendOTP.body.code !== '1000') return res.status(500).json({ message: WSWW, code: '500', data: {} })
+                    let resendToken = sign({
+                        tk_id: (new ObjectId()).toString(), id: user.id, tk_exp: (new Date()).toISOString()
+                    }, process.env.LMS_JWT_SECRET, { expiresIn: '1h' })
+                    resendToken = !resendToken ? undefined : resendToken
+                    return res.status(200).json({
+                        message: 'Authentication code was sent to your phone number. Please check your phone to continue.',
+                        code: '200', data: { id: user.id, firstname: user.firstname, lastname: user.lastname, email: user.email, phone: user.phone }
+                    })
+                } catch (error) {
+                    console.log(error);
+                    return res.status(500).json({ message: WSWW, code: '500', data: {} })
+                }
+            })
+            if (validate !== undefined) return res.status(412).json({ message: validate.error, code: '412', data: {} })
+            return validate
+        })
+    }
+
     return {
-        register, resendOTP, verification
+        register, resendOTP, verification, login
     }
 }

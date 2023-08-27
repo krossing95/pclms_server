@@ -30,11 +30,14 @@ export default function AuthValidations() {
         if (password !== password_confirmation) return { error: 'Passwords do not match' }
         return next()
     }
-    const loginValidator = (email, password, next) => {
-        if (!email.length || !password.length) return { error: 'Email and password required' }
+    const loginValidator = (phone, password, next) => {
+        const cleanedPhoneNumber = cleanExcessWhiteSpaces(phone)
+        if (!cleanedPhoneNumber.length || !password.length) return { error: 'Phone number and password required' }
         if (password.length < 8 || !password.match(PASSWORD)) return { error: 'Incorrect credentials' }
-        if (!email.match(EMAIL)) return { error: 'Incorrect credentials' }
-        return next()
+        if (!cleanedPhoneNumber.match(NUMERICAL) || cleanedPhoneNumber.length !== 10 ||
+            parseInt(cleanedPhoneNumber.charAt(0)) !== 0
+        ) return { error: 'Incorrect credentials' }
+        next()
     }
     const otpValidator = (user, otp, next) => {
         if (!user.toString().match(MONGOOBJECT) || !otp.toString().match(NUMERICAL)) return { error: 'Bad request' }
