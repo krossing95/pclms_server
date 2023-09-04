@@ -95,7 +95,6 @@ const ConfigureDays = () => {
                 if (isNotOwned) return res.status(412).json({ message: 'Cannot update record with existing information', code: '412', data: {} })
                 return DayUpdate(res, id, name, date, timestamp, record)
             } catch (error) {
-                console.log(error);
                 return res.status(500).json({ message: WSWW, code: '500', data: {} })
             }
         })
