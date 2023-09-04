@@ -5,6 +5,7 @@ import helmet from 'helmet'
 import cors from 'cors'
 import { createServer } from 'http'
 import usersRoute from './src/routes/router.users.js'
+import daysRouter from './src/routes/router.days.js'
 
 const app = express()
 dotenv.config()
@@ -20,6 +21,7 @@ app.get('/', (req, res) => {
     return res.send(`Welcome to Laboratory Management System`)
 })
 app.use('/api/users', usersRoute)
+app.use('/api/days_management', daysRouter)
 
 const server = createServer(app)
 server.listen(PORT, () => console.log(`Laboratory Management System is running on port ${PORT}`))
