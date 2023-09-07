@@ -178,10 +178,9 @@ export default function AuthController() {
                     resendToken = !resendToken ? undefined : resendToken
                     return res.status(200).json({
                         message: 'Authentication code was sent to your phone number. Please check your phone to continue.',
-                        code: '200', data: { id: user.id, firstname: user.firstname, lastname: user.lastname, email: user.email, phone: user.phone }
+                        code: '200', data: { id: user.id, firstname: user.firstname, lastname: user.lastname, email: user.email, phone: user.phone, resend_otp_token: resendToken }
                     })
                 } catch (error) {
-                    console.log(error);
                     return res.status(500).json({ message: WSWW, code: '500', data: {} })
                 }
             })

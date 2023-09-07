@@ -10,7 +10,7 @@ export default function RequestInformation(req, res) {
     verify(token, process.env.LMS_JWT_SECRET, async (err, decoded) => {
         if (err) return userObj
         if (typeof decoded === 'undefined') return userObj
-        userObj = { ...decoded, state_id: undefined }
+        userObj = { ...decoded }
     })
     return userObj
 }

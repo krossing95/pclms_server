@@ -1,7 +1,12 @@
 import { Regex } from "../utils/static/index.js"
+import slugify from "slugify"
 
 export default function StringManipulators() {
     const { UNEXPECTED_ATTR, WHITESPACES } = Regex
+    const makeSluggish = (str) => {
+        const options = { lower: true, strict: true, remove: /[*+~.()'"!:@]/g, }
+        return slugify(str, options)
+    }
     const cleanText = (string) => {
         if (typeof string === 'undefined' || string === null) return ''
         return string.trim().replace('<script>', '').replace('</script>', '')
@@ -25,6 +30,6 @@ export default function StringManipulators() {
         return cleanText(format)
     }
     return {
-        capitalize, cleanText, cleanSCW, cleanExcessWhiteSpaces, polishLongTexts
+        capitalize, cleanText, cleanSCW, cleanExcessWhiteSpaces, polishLongTexts, makeSluggish
     }
 }
