@@ -11,7 +11,9 @@ import RequestInformation from '../../helpers/helper.request_sender.js'
 export default function EquipmentController() {
     const { pool } = DatabaseConnection()
     const WSWW = 'Whoops! Something went wrong'
-    const { PAGINATE_EQUIPMENT, CHECKEQUIPMENT, SAVEEQUIPMENT, GETEQUIPMENTFORSEARCH, FILTEREQUIPMENTPREFIX } = EquipmentQuery()
+    const { PAGINATE_EQUIPMENT, CHECKEQUIPMENT, SAVEEQUIPMENT, GETEQUIPMENTFORSEARCH, FILTEREQUIPMENTPREFIX,
+        GETEQUIPMENT
+    } = EquipmentQuery()
     const { Setter, GetPageParams, LocalPaginator } = Pagination()
     const { isTrueBodyStructure } = RequestBodyChecker()
     const { validateEquipment } = EquipmentValidations()
@@ -162,7 +164,19 @@ export default function EquipmentController() {
             return res.status(500).json({ message: WSWW, code: '500', data: {} })
         }
     }
+    const getOneEquipment = async (req, res) => {
+        const params = new URLSearchParams(url.parse(req.url, true).query)
+        if (!params.get('equipment_id')) return res.status(400).json({ message: 'Bad request', code: '400', data: {} })
+        const id = params.get('equipment_id')
+        try {
+            const getData = await pool.query(GETEQUIPMENT, [false, id])
+            if (getData.rowCount === 0) return res.status(412).json({ message: 'No records found', code: '412', data: {} })
+            return res.status(200).json({ message: '', code: '200', data: { ...getData.rows[0] } })
+        } catch (error) {
+            return res.status(500).json({ message: WSWW, code: '500', data: {} })
+        }
+    }
     return {
-        getEquipment, createEquipment, searchEquipment, filterEquipment
+        getEquipment, createEquipment, searchEquipment, filterEquipment, getOneEquipment
     }
 }

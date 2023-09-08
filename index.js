@@ -13,7 +13,7 @@ dotenv.config()
 const PORT = process.env.PORT || process.env.LMS_PORT
 app.use(helmet())
 app.use(cors({
-    origin: ['http://localhost:3000', 'https://pclms-client.vercel.app'],
+    origin: ['http://localhost:3000', 'https://pclms-app.vercel.app'],
     credentials: true,
     methods: ['GET', 'POST', 'PATCH', 'DELETE']
 }))

@@ -14,7 +14,12 @@ export default function EquipmentQuery() {
     e.functionality_status, e.availability_status, e.photo_url, e.photo_id, 
     e.created_at, e.updated_at, u.firstname, u.lastname, u.id AS user_id FROM equipment e INNER JOIN users u
     ON e.created_by = u.id WHERE e.is_deleted = $1 AND `
+    const GETEQUIPMENT = `SELECT e.id, e.name, e.slug, e.description, e.system_error,
+    e.functionality_status, e.availability_status, e.photo_url, e.photo_id, 
+    e.created_at, e.updated_at, u.firstname, u.lastname, u.id AS user_id FROM equipment e INNER JOIN users u
+    ON e.created_by = u.id WHERE e.is_deleted = $1 AND e.id = $2`
     return {
-        PAGINATE_EQUIPMENT, CHECKEQUIPMENT, SAVEEQUIPMENT, GETEQUIPMENTFORSEARCH, FILTEREQUIPMENTPREFIX
+        PAGINATE_EQUIPMENT, CHECKEQUIPMENT, SAVEEQUIPMENT, GETEQUIPMENTFORSEARCH, FILTEREQUIPMENTPREFIX,
+        GETEQUIPMENT
     }
 }
