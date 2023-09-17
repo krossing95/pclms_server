@@ -22,9 +22,10 @@ export default function EquipmentQuery() {
     const SAVEFILE = `UPDATE equipment SET photo_id = $1, photo_url = $2, updated_at = $3 WHERE id = $4`
     const UPDATEEQUIPMENT = `UPDATE equipment SET name = $1, description = $2, system_error = $3, functionality_status = $4, 
     availability_status = $5, updated_at = $6 WHERE id = $7`
-    // name, description, system_error, functionality_status, availability_status, timestamp, id
+    const COUNTRELATEDBOOKINGS = `SELECT COUNT(*) AS related_bookings FROM bookings WHERE equipment_id = $1 AND status != $2`
+    const REMOVEEQUIPMENT = `DELETE FROM equipment WHERE id = $1`
     return {
         PAGINATE_EQUIPMENT, CHECKEQUIPMENT, SAVEEQUIPMENT, GETEQUIPMENTFORSEARCH, FILTEREQUIPMENTPREFIX,
-        GETEQUIPMENT, SAVEFILE, GETEQUIPMENTBYNAME, UPDATEEQUIPMENT
+        GETEQUIPMENT, SAVEFILE, GETEQUIPMENTBYNAME, UPDATEEQUIPMENT, COUNTRELATEDBOOKINGS, REMOVEEQUIPMENT
     }
 }

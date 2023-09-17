@@ -19,7 +19,7 @@ export default function AuthController() {
     const { cleanSCW, cleanExcessWhiteSpaces } = StringManipulators()
     const { pool } = DatabaseConnection()
     const { MONGOOBJECT, NUMERICAL } = Regex
-    const { CHECKUSERINSTANCE, CREATEUSER, GETUSER, GETPHONE } = AuthQuery()
+    const { CHECKUSERINSTANCE, CREATEUSER, GETUSER, GETPHONE, VERIFYUSER } = AuthQuery()
     const SALT = genSaltSync(10)
     const { sign } = JWT.default
 
@@ -111,8 +111,8 @@ export default function AuthController() {
         }
     }
     const verification = async (req, res) => {
-        let { user_id, verification_code } = req.body
-        const expected_payload = ['user_id', 'verification_code']
+        let { user_id, verification_code, page } = req.body
+        const expected_payload = ['user_id', 'verification_code', 'page']
         const checkPayload = isTrueBodyStructure(req.body, expected_payload)
         if (!checkPayload) return res.status(400).json({ message: 'Bad request', code: '400', data: {} })
         if (!user_id.match(MONGOOBJECT)) return res.status(400).json({ message: 'Bad request', code: '400', data: {} })
@@ -122,6 +122,7 @@ export default function AuthController() {
             const getUser = await pool.query(GETUSER, [user_id])
             if (getUser.rowCount !== 1) return res.status(404).json({ message: 'Account does not exists on this server', code: '404', data: {} })
             const data = getUser.rows[0]
+            if (page === 'sign-up') await pool.query(VERIFYUSER, [true, data.id])
             const verifyOTP = await needle("post", process.env.LMS_OTP_VERIFICATION_URL,
                 { api_key: process.env.LMS_MESSENGER_API_KEY, code: verification_code, number: `233${parseInt(data.phone)}` }, {
                 headers: {
@@ -157,6 +158,7 @@ export default function AuthController() {
                     const checkPhone = await pool.query(GETPHONE, [phone])
                     if (checkPhone.rowCount === 0) return register.status(412).json({ message: 'No user found', code: '412', data: {} })
                     const user = checkPhone.rows[0]
+                    if (user.is_verified === false) return res.status(412).json({ message: 'Account is not verified', code: '412', data: {} })
                     const isUsersPassword = compareSync(password, user.password)
                     if (!isUsersPassword) return res.status(412).json({ message: 'Incorrect credentials', code: '412', data: {} })
                     const data = {

@@ -9,18 +9,20 @@ import StringManipulators from '../../helpers/helper.string_methods.js'
 import RequestInformation from '../../helpers/helper.request_sender.js'
 import { Regex } from '../../utils/static/index.js'
 import PhotoUploader from '../../helpers/helper.photo_upload.js'
+import DatabaseEngine from '../../helpers/helper.engine.db.js'
 
 export default function EquipmentController() {
     const { pool } = DatabaseConnection()
     const { ImageStorage, ImageDestroy } = PhotoUploader()
     const WSWW = 'Whoops! Something went wrong'
     const { PAGINATE_EQUIPMENT, CHECKEQUIPMENT, SAVEEQUIPMENT, GETEQUIPMENTFORSEARCH, FILTEREQUIPMENTPREFIX,
-        GETEQUIPMENT, SAVEFILE, GETEQUIPMENTBYNAME, UPDATEEQUIPMENT
+        GETEQUIPMENT, SAVEFILE, GETEQUIPMENTBYNAME, UPDATEEQUIPMENT, REMOVEEQUIPMENT, COUNTRELATEDBOOKINGS
     } = EquipmentQuery()
     const { Setter, GetPageParams, LocalPaginator } = Pagination()
     const { isTrueBodyStructure } = RequestBodyChecker()
     const { validateEquipment } = EquipmentValidations()
-    const { cleanSCW, cleanExcessWhiteSpaces } = StringManipulators()
+    const { cleanSCW, cleanExcessWhiteSpaces, polishLongTexts } = StringManipulators()
+    const { ExecuteSoftDelete } = DatabaseEngine()
     const resultPerPage = 20
     const { MONGOOBJECT } = Regex
 
@@ -35,7 +37,8 @@ export default function EquipmentController() {
                     equipment: [...collection.rows],
                     page_data: {
                         ...paginationData, currentPage: page, pageSize
-                    }
+                    },
+                    data_type: ''
                 }
             })
         } catch (error) {
@@ -62,8 +65,8 @@ export default function EquipmentController() {
         const validate = validateEquipment(req.body, async () => {
             try {
                 name = cleanSCW(name)
-                description = cleanExcessWhiteSpaces(description)
-                system_error = cleanExcessWhiteSpaces(system_error)
+                description = polishLongTexts(description)
+                system_error = polishLongTexts(system_error)
                 const checkExistingItem = await CheckEquipment(name)
                 if (checkExistingItem > 0) return res.status(412).json({ message: 'Record exists already', code: '412', data: {} })
                 const request_sender = RequestInformation(req, res)
@@ -77,7 +80,7 @@ export default function EquipmentController() {
                 const { pageSize, offset, page } = Setter(params, 1, resultPerPage)
                 const paginationData = await GetPageParams(pageSize, 'equipment', `is_deleted = false`)
                 const collection = await pool.query(PAGINATE_EQUIPMENT, [false, pageSize, offset])
-                return res.status(200).json({
+                return res.status(201).json({
                     message: 'Record created successfully', code: '201', data: {
                         equipment: [...collection.rows],
                         page_data: {
@@ -100,7 +103,8 @@ export default function EquipmentController() {
             equipment: [],
             page_data: {
                 totalPages: 0, totalCount: 0, currentPage: page, pageSize
-            }
+            },
+            data_type: ''
         }
         if (!params.get('q')) return res.status(200).json({ message: 'Search query is missing', code: '200', data: { ...structure } })
         const q = cleanExcessWhiteSpaces(params.get('q')).toLowerCase()
@@ -114,7 +118,8 @@ export default function EquipmentController() {
                     equipment: [...list],
                     page_data: {
                         totalPages, totalCount, currentPage: page, pageSize
-                    }
+                    },
+                    data_type: totalPages > 1 ? 'search' : ''
                 }
             })
         } catch (error) {
@@ -143,7 +148,8 @@ export default function EquipmentController() {
             equipment: [],
             page_data: {
                 totalPages: 0, totalCount: 0, currentPage: page, pageSize
-            }
+            },
+            data_type: ''
         }
         const functionality_status = !params.get('functionality_status') ? '' : params.get('functionality_status')
         const availability_status = !params.get('availability_status') ? '' : params.get('availability_status')
@@ -160,7 +166,8 @@ export default function EquipmentController() {
                     equipment: [...list],
                     page_data: {
                         totalPages, totalCount, currentPage: page, pageSize
-                    }
+                    },
+                    data_type: totalPages > 1 ? 'filter' : ''
                 }
             })
         } catch (error) {
@@ -235,8 +242,8 @@ export default function EquipmentController() {
         const validate = validateEquipment(req.body, async () => {
             try {
                 name = cleanSCW(name)
-                description = cleanExcessWhiteSpaces(description)
-                system_error = cleanExcessWhiteSpaces(system_error)
+                description = polishLongTexts(description)
+                system_error = polishLongTexts(system_error)
                 const getData = await pool.query(GETEQUIPMENT, [false, id])
                 if (getData.rowCount === 0) return res.status(412).json({ message: 'No records found', code: '412', data: {} })
                 const checkExistingItem = await pool.query(GETEQUIPMENTBYNAME, [name])
@@ -256,6 +263,16 @@ export default function EquipmentController() {
         const params = new URLSearchParams(url.parse(req.url, true).query)
         if (!params.get('id')) return res.status(400).json({ message: 'Bad request', code: '400', data: {} })
         const id = params.get('id')
+        try {
+            const countBookingsOnEquipment = await pool.query(COUNTRELATEDBOOKINGS, [id, 3])
+            const totalResult = parseInt(countBookingsOnEquipment.rows[0].related_bookings)
+            if (totalResult > 0) return ExecuteSoftDelete(res, id, 'equipment')
+            // await ImageDestroy()
+            await pool.query(REMOVEEQUIPMENT, [id])
+            return res.status(200).json({ message: 'Record removed successfully', code: '200', data: {} })
+        } catch (error) {
+            return res.status(500).json({ message: WSWW, code: '500', data: {} })
+        }
     }
     return {
         getEquipment, createEquipment, searchEquipment, filterEquipment, getOneEquipment,

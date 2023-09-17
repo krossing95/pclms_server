@@ -13,7 +13,7 @@ export default function Pagination() {
             CEIL(total_count::float / ${pageSize}) AS total_pages
                 FROM (
                     SELECT COUNT(*) AS total_count
-                FROM ${model} WHERE ${conditions}
+                FROM ${model}${conditions.length > 0 ? ` WHERE ${conditions}` : ''}
             ) AS subquery`
         try {
             const countResult = await pool.query(query)
