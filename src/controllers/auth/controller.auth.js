@@ -156,7 +156,7 @@ export default function AuthController() {
                 try {
                     phone = cleanExcessWhiteSpaces(phone)
                     const checkPhone = await pool.query(GETPHONE, [phone])
-                    if (checkPhone.rowCount === 0) return register.status(412).json({ message: 'No user found', code: '412', data: {} })
+                    if (checkPhone.rowCount === 0) return res.status(412).json({ message: 'No user found', code: '412', data: {} })
                     const user = checkPhone.rows[0]
                     if (user.is_verified === false) return res.status(412).json({ message: 'Account is not verified', code: '412', data: {} })
                     const isUsersPassword = compareSync(password, user.password)
@@ -173,7 +173,7 @@ export default function AuthController() {
                             'Content-Type': 'application/json'
                         }
                     })
-                    if (sendOTP.body.code !== '1000') return res.status(500).json({ message: WSWW, code: '500', data: {} })
+                    if (sendOTP.body.code !== '1000') return res.status(500).json({ message: WSWW, code: '500', data: { sendOTP: sendOTP.body } })
                     let resendToken = sign({
                         tk_id: (new ObjectId()).toString(), id: user.id, tk_exp: (new Date()).toISOString()
                     }, process.env.LMS_JWT_SECRET, { expiresIn: '1h' })
