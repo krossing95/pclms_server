@@ -134,7 +134,17 @@ const ConfigureDays = () => {
             const getRecord = await pool.query(GETDAY, [id])
             if (getRecord.rowCount === 0) return res.status(412).json({ message: 'No records found', code: '412', data: {} })
             await pool.query(DELETEDAY, [id])
-            return res.status(200).json({ message: 'Record was successfully', code: '200', data: {} })
+            const { pageSize, offset, page } = Setter(params, 1, resultPerPage)
+            const paginationData = await GetPageParams(pageSize, 'blocked_days', '')
+            const collection = await pool.query(PAGINATE_DAYS, [pageSize, offset])
+            return res.status(200).json({
+                message: 'Record was successfully', code: '200', data: {
+                    blocked_days: [...collection.rows],
+                    page_data: {
+                        ...paginationData, currentPage: page, pageSize
+                    }
+                }
+            })
         } catch (error) {
             return res.status(500).json({ message: WSWW, code: '500', data: {} })
         }
