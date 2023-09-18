@@ -23,7 +23,7 @@ export default function EquipmentController() {
     const { validateEquipment } = EquipmentValidations()
     const { cleanSCW, cleanExcessWhiteSpaces, polishLongTexts } = StringManipulators()
     const { ExecuteSoftDelete } = DatabaseEngine()
-    const resultPerPage = 20
+    const resultPerPage = Number(process.env.LMS_PAGE_DENSITY)
     const { MONGOOBJECT } = Regex
 
     const getEquipment = async (req, res) => {

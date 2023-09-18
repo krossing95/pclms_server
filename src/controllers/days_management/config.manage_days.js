@@ -18,7 +18,7 @@ const ConfigureDays = () => {
     const { validateDay } = DaysValidations()
     const { cleanSCW, cleanExcessWhiteSpaces } = StringManipulators()
     const { LocalPaginator, Setter, GetPageParams } = Pagination()
-    const resultPerPage = 5
+    const resultPerPage = Number(process.env.LMS_PAGE_DENSITY)
 
     const CheckSimilarDay = async (name, date) => {
         try {
