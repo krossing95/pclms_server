@@ -18,7 +18,7 @@ export default function UserValidations() {
             parseInt(phone.charAt(0)) !== 0
         ) return { error: 'Phone number must be a numerical string of 10 chars, starting with 0' }
         if (firstname.length < 3 || firstname.length > 30 || lastname.length < 3 || lastname.length > 30) return { error: 'Names must be in the range of 3 to 30 chars' }
-        if (![1, 2, 3].includes(type => type === Number(usertype))) return { error: 'Chosen user role was rejected' }
+        if (![1, 2, 3].includes(Number(usertype))) return { error: 'Chosen user role was rejected' }
         next()
     }
 

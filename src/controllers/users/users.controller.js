@@ -111,7 +111,7 @@ export default function UsersController() {
                 return res.status(500).json({ message: WSWW, code: '500', data: {} })
             }
         })
-        if (validate !== undefined) return res.status(412).json({ message: WSWW, code: '412', data: {} })
+        if (validate !== undefined) return res.status(412).json({ message: validate.error, code: '412', data: {} })
     }
 
     return {
