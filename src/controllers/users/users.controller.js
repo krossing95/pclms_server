@@ -6,17 +6,19 @@ import UsersQuery from "../../queries/query.users.js"
 import url from "url"
 import UserValidations from "../../validators/users/validate.users.js"
 import AuthQuery from "../../queries/query.auth.js"
+import { Regex } from "../../utils/static/index.js"
 
 export default function UsersController() {
     const { pool } = DatabaseConnection()
     const WSWW = 'Whoops! Something went wrong'
-    const { PAGINATE_USERS, GETUSERSFORSEARCH, GETUSER, UPDATEUSER } = UsersQuery()
+    const { PAGINATE_USERS, GETUSERSFORSEARCH, GETUSER, UPDATEUSER, CHECKEQUIPMENTBYUSER, DELETEUSER, CLEARCREDENTIALS } = UsersQuery()
     const { CHECKUSERINSTANCE } = AuthQuery()
     const { isTrueBodyStructure } = RequestBodyChecker()
     const { cleanSCW, cleanExcessWhiteSpaces } = StringManipulators()
     const { LocalPaginator, Setter, GetPageParams } = Pagination()
     const { validateUserUpdate } = UserValidations()
     const resultPerPage = Number(process.env.LMS_PAGE_DENSITY)
+    const { MONGOOBJECT } = Regex
 
     const getUsers = async (req, res) => {
         const params = new URLSearchParams(url.parse(req.url, true).query)
@@ -102,6 +104,7 @@ export default function UsersController() {
                 const userData = await pool.query(GETUSER, [id])
                 if (userData.rowCount !== 1) return res.status(412).json({ message: 'No records found', code: '412', data: {} })
                 const user = userData.rows[0]
+                if (!user.is_verified && usertype === process.env.LMS_ADMIN) return res.status(412).json({ message: 'Cannot assign administrative roles to user', code: '412', data: {} })
                 const checkUserInstance = await pool.query(CHECKUSERINSTANCE, [email, phone])
                 if (checkUserInstance.rowCount === 0) return UpdateUserInformation(res, user, id, firstname, lastname, email, phone, usertype)
                 const isNotOwned = checkUserInstance.rows.some(item => item.id !== id)
@@ -113,8 +116,57 @@ export default function UsersController() {
         })
         if (validate !== undefined) return res.status(412).json({ message: validate.error, code: '412', data: {} })
     }
+    const DeleteUser = async (req, res, id) => {
+        const params = new URLSearchParams(url.parse(req.url, true).query)
+        const { pageSize, offset, page } = Setter(params, 1, resultPerPage)
+        try {
+            await pool.query(DELETEUSER, [id])
+            const paginationData = await GetPageParams(pageSize, 'users', `is_deleted = false`)
+            const collection = await pool.query(PAGINATE_USERS, [false, pageSize, offset])
+            return res.status(200).json({
+                message: 'User records deleted successfully', code: '200', data: {
+                    users: [...collection.rows],
+                    page_data: {
+                        ...paginationData, currentPage: page, pageSize
+                    },
+                    data_type: ''
+                }
+            })
+        } catch (error) {
+            return res.status(500).json({ message: WSWW, code: '500', data: {} })
+        }
+    }
+    const removeUser = async (req, res) => {
+        const params = new URLSearchParams(url.parse(req.url, true).query)
+        if (!params.get('id')) return res.status(412).json({ message: 'Bad request', code: '412', data: {} })
+        const id = params.get('id')
+        if (!id.match(MONGOOBJECT)) return res.status(412).json({ message: 'Bad request', code: '412', data: {} })
+        try {
+            const checkUser = await pool.query(GETUSER, [id])
+            if (checkUser.rowCount === 0) return res.status(412).json({ message: 'No records found', code: '412', data: {} })
+            const checkEquipmentByUser = await pool.query(CHECKEQUIPMENTBYUSER, [id])
+            const count = Number(checkEquipmentByUser.rows[0].equipments_registered_by_user)
+            if (count === 0) return DeleteUser(req, res, id)
+            const anonyms = ''
+            await pool.query(CLEARCREDENTIALS, [anonyms, true, id])
+            const { pageSize, offset, page } = Setter(params, 1, resultPerPage)
+            const paginationData = await GetPageParams(pageSize, 'users', `is_deleted = false`)
+            const collection = await pool.query(PAGINATE_USERS, [false, pageSize, offset])
+            return res.status(200).json({
+                message: 'User records moved to recycle bin', code: '200', data: {
+                    users: [...collection.rows],
+                    page_data: {
+                        ...paginationData, currentPage: page, pageSize
+                    },
+                    data_type: ''
+                }
+            })
+        } catch (error) {
+            return res.status(500).json({ message: WSWW, code: '500', data: {} })
+        }
+    }
 
     return {
-        getUsers, searchUsers, updateUser
+        getUsers, searchUsers, updateUser, removeUser
     }
 }

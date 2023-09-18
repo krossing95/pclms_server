@@ -6,7 +6,7 @@ import AdminMiddleware from "../middlewares/middleware.admin.js"
 const usersRoute = express.Router()
 
 const { register, resendOTP, verification, login } = AuthController()
-const { getUsers, searchUsers, updateUser } = UsersController()
+const { getUsers, searchUsers, updateUser, removeUser } = UsersController()
 
 usersRoute.post('/auth', register)
 usersRoute.post('/auth/login', login)
@@ -15,5 +15,6 @@ usersRoute.post('/auth/resend_otp', resendOTP)
 usersRoute.get('/', getUsers)
 usersRoute.get('/search', searchUsers)
 usersRoute.patch('/', AdminMiddleware, updateUser)
+usersRoute.delete('/', removeUser)
 
 export default usersRoute
