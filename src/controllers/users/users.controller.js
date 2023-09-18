@@ -3,17 +3,19 @@ import Pagination from "../../helpers/helper.pagination.js"
 import RequestBodyChecker from "../../helpers/helper.request_checker.js"
 import StringManipulators from "../../helpers/helper.string_methods.js"
 import UsersQuery from "../../queries/query.users.js"
-import { Regex } from "../../utils/static/index.js"
 import url from "url"
+import UserValidations from "../../validators/users/validate.users.js"
+import AuthQuery from "../../queries/query.auth.js"
 
 export default function UsersController() {
     const { pool } = DatabaseConnection()
     const WSWW = 'Whoops! Something went wrong'
-    const { MONGOOBJECT } = Regex
-    const { PAGINATE_USERS, GETUSERSFORSEARCH } = UsersQuery()
+    const { PAGINATE_USERS, GETUSERSFORSEARCH, GETUSER, UPDATEUSER } = UsersQuery()
+    const { CHECKUSERINSTANCE } = AuthQuery()
     const { isTrueBodyStructure } = RequestBodyChecker()
     const { cleanSCW, cleanExcessWhiteSpaces } = StringManipulators()
     const { LocalPaginator, Setter, GetPageParams } = Pagination()
+    const { validateUserUpdate } = UserValidations()
     const resultPerPage = Number(process.env.LMS_PAGE_DENSITY)
 
     const getUsers = async (req, res) => {
@@ -65,9 +67,54 @@ export default function UsersController() {
             return res.status(500).json({ message: WSWW, code: '500', data: {} })
         }
     }
+    const UpdateUserInformation = async (res, user, id, firstname, lastname, email, phone, usertype) => {
+        const timestamp = (new Date()).toISOString()
+        try {
+            await pool.query(UPDATEUSER, [firstname, lastname, email, phone, usertype, timestamp, id])
+            return res.status(200).json({
+                message: 'Successful user update', code: '200', data: {
+                    ...user,
+                    firstname,
+                    lastname,
+                    email,
+                    phone,
+                    usertype,
+                    updated_at: timestamp
+                }
+            })
+        } catch (error) {
+            return res.status(500).json({ message: WSWW, code: '500', data: {} })
+        }
+    }
+    const updateUser = async (req, res) => {
+        let { id, firstname, lastname, email, phone, usertype } = req.body
+        const expected_payload = ['id', 'firstname', 'lastname', 'email', 'phone', 'usertype']
+        const checkPayload = isTrueBodyStructure(req.body, expected_payload)
+        if (!checkPayload) return res.status(400).json({ message: 'Bad request', code: '400', data: {} })
 
+        const validate = validateUserUpdate(req.body, async () => {
+            firstname = cleanSCW(firstname)
+            lastname = cleanSCW(lastname)
+            email = email.trim()
+            phone = cleanExcessWhiteSpaces(phone)
+            usertype = Number(usertype)
+            try {
+                const userData = await pool.query(GETUSER, [id])
+                if (userData.rowCount !== 1) return res.status(412).json({ message: 'No records found', code: '412', data: {} })
+                const user = userData.rows[0]
+                const checkUserInstance = await pool.query(CHECKUSERINSTANCE, [email, phone])
+                if (checkUserInstance.rowCount === 0) return UpdateUserInformation(res, user, id, firstname, lastname, email, phone, usertype)
+                const isNotOwned = checkUserInstance.rows.some(item => item.id !== id)
+                if (isNotOwned) return res.status(412).json({ message: 'Email address or phone number has been taken', code: '412', data: {} })
+                return UpdateUserInformation(res, user, id, firstname, lastname, email, phone, usertype)
+            } catch (error) {
+                return res.status(500).json({ message: WSWW, code: '500', data: {} })
+            }
+        })
+        if (validate !== undefined) return res.status(412).json({ message: WSWW, code: '412', data: {} })
+    }
 
     return {
-        getUsers, searchUsers
+        getUsers, searchUsers, updateUser
     }
 }
