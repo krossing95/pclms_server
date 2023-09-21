@@ -21,7 +21,13 @@ export default function EquipmentValidations() {
         if (functionality_status === false && system_error.length < 5) return { error: 'Provide the system errors associated with the equipment' }
         next()
     }
+    const validateComment = (data, next) => {
+        let { equipment_id, comment } = data
+        if (!equipment_id.match(MONGOOBJECT)) return { error: 'Request was rejected' }
+        if (comment.length === 0) return { error: 'Comment field is required' }
+        next()
+    }
     return {
-        validateEquipment
+        validateEquipment, validateComment
     }
 }

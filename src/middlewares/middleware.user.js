@@ -1,7 +1,8 @@
 import * as JWT from 'jsonwebtoken'
 
 export default function UserMiddleware(req, res, next) {
-    const UNAUTH = 'Unauthorized request', { verify } = JWT.default
+    const UNAUTH = 'Unauthorized request'
+    const { verify } = JWT.default
     const authorizer = req.headers['authorization']
     if (typeof authorizer === 'undefined') return res.status(401).json({ message: UNAUTH, code: '401', data: {} })
     const bearer = authorizer.split(' ', 2)
@@ -11,7 +12,6 @@ export default function UserMiddleware(req, res, next) {
         if (err) return res.status(401).json({ message: UNAUTH, code: '401', data: {} })
         if (typeof decoded === 'undefined') return res.status(401).json({ message: UNAUTH, code: '401', data: {} })
         const { usertype } = decoded
-        req.usertype = usertype
         if (usertype === Number(process.env.LMS_USER) || usertype === Number(process.env.LMS_ADMIN)) return next()
         return res.status(401).json({ message: UNAUTH, code: '401', data: {} })
     })

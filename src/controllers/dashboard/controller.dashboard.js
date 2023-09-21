@@ -1,35 +1,51 @@
 import DatabaseConnection from "../../config/config.db.js"
 import DashboardQuery from "../../queries/query.dashboard.js"
+import RequestInformation from "../../helpers/helper.request_sender.js"
 
 export default function DashboardController() {
     const { pool } = DatabaseConnection()
     const sqlQuery = DashboardQuery()
     const WSWW = 'Whoops! Something went wrong'
 
-    const FetchUserData = async (res) => {
+    const FetchUserData = async () => {
         // equipment, bookings, favorites
         try {
             const getData = await pool.query(sqlQuery.GETUSERDATA)
             const data = getData.rows[0]
-            return res.status(200).json({
-                message: '', code: '200', data: {
-                    available_equipment: parseInt(data.available_equipment),
-                    unavailable_equipment: parseInt(data.unavailable_equipment)
-                }
-            })
-        } catch (error) {
-            return res.status(500).json({ mesage: WSWW, code: '500', data: {} })
+            return {
+                available_equipment: parseInt(data.available_equipment),
+                unavailable_equipment: parseInt(data.unavailable_equipment)
+            }
+        } finally {
+            console.log(true)
         }
-
     }
-    const FetchAdminData = async (res) => {
-
+    const FetchAdminData = async () => {
+        try {
+            const getData = await pool.query(sqlQuery.GETUSERDATA)
+            const data = getData.rows[0]
+            return {
+                available_equipment: parseInt(data.available_equipment),
+                unavailable_equipment: parseInt(data.unavailable_equipment)
+            }
+        } finally {
+            console.log(true)
+        }
     }
 
     const fetchData = async (req, res) => {
-        const usertype = req.usertype
-        if (usertype === process.env.LMS_USER) return FetchUserData(res)
-        if (usertype === process.env.LMS_ADMIN) return FetchAdminData(res)
+        const request_sender = RequestInformation(req, res)
+        const requestObjKeys = Object.keys(request_sender)
+        if (requestObjKeys.length === 0) return res.status(401).json({ message: 'Unauthorized request', code: '401', data: {} })
+        const usertype = request_sender.usertype
+        try {
+            const data = usertype === Number(process.env.LMS_USER) ? await FetchUserData() :
+                usertype === Number(process.env.LMS_ADMIN) ? await FetchAdminData() : null
+            if (!data) return res.status(500).json({ message: WSWW, code: '500', data: {} })
+            return res.status(200).json({ message: '', code: '200', data })
+        } catch (error) {
+            return res.status(500).json({ message: WSWW, code: '500', data: {} })
+        }
     }
 
     return {

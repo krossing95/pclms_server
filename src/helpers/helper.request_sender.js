@@ -1,7 +1,8 @@
 import * as JWT from 'jsonwebtoken'
 
 export default function RequestInformation(req, res) {
-    const { verify } = JWT.default, authorizer = req.headers['authorization']
+    const { verify } = JWT.default
+    const authorizer = req.headers['authorization']
     let userObj = {}
     if (typeof authorizer === 'undefined') return userObj
     const bearer = authorizer.split(' ', 2)
