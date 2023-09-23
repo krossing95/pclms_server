@@ -14,7 +14,7 @@ export default function EquipmentCommentController() {
     const validations = EquipmentValidations()
     const WSWW = 'Whoops! Something went wrong'
     const { pool } = DatabaseConnection()
-    const { CHECKEQUIPMENTANDCOMMENT, SAVECOMMENT, PAGINATE_COMMENTS, GETCOMMENT, UPDATECOMMENT } = CommentQuery()
+    const { CHECKEQUIPMENTANDCOMMENT, SAVECOMMENT, PAGINATE_COMMENTS, GETCOMMENT, UPDATECOMMENT, DELETECOMMENT } = CommentQuery()
     const { polishLongTexts } = StringManipulators()
     const { Setter, GetPageParams } = Pagination()
     const resultPerPage = Number(process.env.LMS_PAGE_DENSITY)
@@ -85,6 +85,8 @@ export default function EquipmentCommentController() {
         const expected_payload = ['id', 'comment']
         const checkPayload = isTrueBodyStructure(req.body, expected_payload)
         if (!checkPayload) return res.status(400).json({ message: 'Bad request', code: '400', data: {} })
+        // not equal but to match validations
+        req.body = { ...req.body, equipment_id: id }
         const validate = validations.validateComment(req.body, async () => {
             try {
                 const request_sender = RequestInformation(req, res)
@@ -112,7 +114,37 @@ export default function EquipmentCommentController() {
         return validate
     }
 
+    const deleteComment = async (req, res) => {
+        const params = new URLSearchParams(url.parse(req.url, true).query)
+        if (!params.get('id')) return res.status(412).json({ message: 'No comments found', code: '412', data: {} })
+        const id = params.get('id')
+        if (!id.match(regex.MONGOOBJECT)) return res.status(412).json({ message: 'No comments found', code: '412', data: {} })
+        try {
+            const request_sender = RequestInformation(req, res)
+            if (!Object.keys(request_sender).includes('user_id')) return res.status(412).json({ message: 'Cannot access the resource now', code: '412', data: {} })
+            const userId = request_sender.user_id
+            const getComment = await pool.query(GETCOMMENT, [id])
+            if (getComment.rowCount === 0) return res.status(412).json({ message: 'Comment does not exists', code: '412', data: {} })
+            const data = getComment.rows[0]
+            if (data.user_id !== userId) return res.status(412).json({ message: 'Access denied', code: '412', data: {} })
+            await pool.query(DELETECOMMENT, [id])
+            const { pageSize, offset, page } = Setter(params, 1, resultPerPage)
+            const paginationData = await GetPageParams(pageSize, 'comments', `equipment_id='${data.equipment_id}'`)
+            const collection = await pool.query(PAGINATE_COMMENTS, [data.equipment_id, pageSize, offset])
+            return res.status(200).json({
+                message: 'Comment removed successfully', code: '200', data: {
+                    comments: [...collection.rows],
+                    page_data: {
+                        ...paginationData, currentPage: page, pageSize
+                    }
+                }
+            })
+        } catch (error) {
+            return res.status(500).json({ message: WSWW, code: '500', data: {} })
+        }
+    }
+
     return {
-        postComment, getComments, updateComment
+        postComment, getComments, updateComment, deleteComment
     }
 }

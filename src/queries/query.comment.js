@@ -11,7 +11,9 @@ export default function CommentQuery() {
     e.name AS equipment_name, c.equipment_id FROM comments c INNER JOIN users u ON c.user_id = u.id INNER JOIN 
     equipment e ON e.id = c.equipment_id WHERE c.id = $1`
     const UPDATECOMMENT = `UPDATE comments SET comment = $1, updated_at = $2 WHERE id = $3`
+    const DELETECOMMENT = `DELETE FROM comments WHERE id = $1`
     return {
-        CHECKEQUIPMENTANDCOMMENT, SAVECOMMENT, PAGINATE_COMMENTS, GETCOMMENT, UPDATECOMMENT
+        CHECKEQUIPMENTANDCOMMENT, SAVECOMMENT, PAGINATE_COMMENTS, GETCOMMENT, UPDATECOMMENT,
+        DELETECOMMENT
     }
 }

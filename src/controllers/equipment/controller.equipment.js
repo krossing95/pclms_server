@@ -16,7 +16,8 @@ export default function EquipmentController() {
     const { ImageStorage, ImageDestroy } = PhotoUploader()
     const WSWW = 'Whoops! Something went wrong'
     const { PAGINATE_EQUIPMENT, CHECKEQUIPMENT, SAVEEQUIPMENT, GETEQUIPMENTFORSEARCH, FILTEREQUIPMENTPREFIX,
-        GETEQUIPMENT, SAVEFILE, GETEQUIPMENTBYNAME, UPDATEEQUIPMENT, REMOVEEQUIPMENT, COUNTRELATEDBOOKINGS
+        GETEQUIPMENT, SAVEFILE, GETEQUIPMENTBYNAME, UPDATEEQUIPMENT, REMOVEEQUIPMENT, COUNTRELATEDBOOKINGS,
+        GETSAVEDSTATUS, SAVEFAVORITE, UPDATEFAVORITE
     } = EquipmentQuery()
     const { Setter, GetPageParams, LocalPaginator } = Pagination()
     const { isTrueBodyStructure } = RequestBodyChecker()
@@ -179,9 +180,30 @@ export default function EquipmentController() {
         if (!params.get('equipment_id')) return res.status(400).json({ message: 'Bad request', code: '400', data: {} })
         const id = params.get('equipment_id')
         try {
+            const request_sender = RequestInformation(req, res)
+            const userId = Object.keys(request_sender).includes('user_id') ? request_sender.user_id : null
             const getData = await pool.query(GETEQUIPMENT, [false, id])
             if (getData.rowCount === 0) return res.status(412).json({ message: 'No records found', code: '412', data: {} })
-            return res.status(200).json({ message: '', code: '200', data: { ...getData.rows[0] } })
+            if (!userId) return res.status(200).json({
+                message: '',
+                code: '200',
+                data: { ...getData.rows[0] }
+            })
+            const getSavedStatus = await pool.query(GETSAVEDSTATUS, [userId, id])
+            if (getSavedStatus.rowCount === 0) return res.status(200).json({
+                message: '',
+                code: '200',
+                data: { ...getData.rows[0], saved: false }
+            })
+            const isSaved = getSavedStatus.rows[0].is_saved
+            return res.status(200).json({
+                message: '',
+                code: '200',
+                data: {
+                    ...getData.rows[0],
+                    saved: isSaved
+                }
+            })
         } catch (error) {
             return res.status(500).json({ message: WSWW, code: '500', data: {} })
         }
@@ -274,8 +296,40 @@ export default function EquipmentController() {
             return res.status(500).json({ message: WSWW, code: '500', data: {} })
         }
     }
+    const SaveEquipmentAsFavorite = async (res, data, id, userId, isSaved, command) => {
+        try {
+            command === 'create' ?
+                await pool.query(SAVEFAVORITE, [id, userId, isSaved]) :
+                await pool.query(UPDATEFAVORITE, [id, userId, isSaved])
+            return res.status(200).json({ message: isSaved ? 'Item saved as favorite' : 'Item removed from favorite list', code: '200', data: { is_saved: isSaved } })
+        } catch (error) {
+            console.log(error);
+            return res.status(500).json({ message: WSWW, code: '500', data: {} })
+        }
+    }
+    const saveEquipmentAsFavorite = async (req, res) => {
+        let { id } = req.body
+        const expected_payload = ['id']
+        const checkPayload = isTrueBodyStructure(req.body, expected_payload)
+        if (!checkPayload) return res.status(400).json({ message: 'Bad request', code: '400', data: {} })
+        if (!id.match(MONGOOBJECT)) return res.status(412).json({ message: 'Bad request', code: '412', data: {} })
+        try {
+            const request_sender = RequestInformation(req, res)
+            const userId = Object.keys(request_sender).includes('user_id') ? request_sender.user_id : null
+            if (!userId) return res.status(412).json({ message: 'Access denied', code: '412', data: {} })
+            const getData = await pool.query(GETEQUIPMENT, [false, id])
+            if (getData.rowCount === 0) return res.status(412).json({ message: 'No records found', code: '412', data: {} })
+            const data = getData.rows[0]
+            const getSavedStatus = await pool.query(GETSAVEDSTATUS, [userId, id])
+            if (getSavedStatus.rowCount === 0) return SaveEquipmentAsFavorite(res, data, id, userId, true, 'create')
+            const isSaved = getSavedStatus.rows[0].is_saved
+            return SaveEquipmentAsFavorite(res, data, id, userId, !isSaved, 'update')
+        } catch (error) {
+            return res.status(500).json({ message: WSWW, code: '500', data: {} })
+        }
+    }
     return {
         getEquipment, createEquipment, searchEquipment, filterEquipment, getOneEquipment,
-        equipmentFileUpload, updateEquipment, removeEquipment
+        equipmentFileUpload, updateEquipment, removeEquipment, saveEquipmentAsFavorite
     }
 }

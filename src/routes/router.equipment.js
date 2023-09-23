@@ -21,6 +21,9 @@ equipmentRouter.delete('/', AdminMiddleware, equipmentControllers.removeEquipmen
 // Comments
 equipmentRouter.post('/comments', UserMiddleware, commentControllers.postComment)
 equipmentRouter.patch('/comments', UserMiddleware, commentControllers.updateComment)
+equipmentRouter.delete('/comments', UserMiddleware, commentControllers.deleteComment)
 equipmentRouter.get('/comments', commentControllers.getComments)
 
+// Saves
+equipmentRouter.post('/save', UserMiddleware, equipmentControllers.saveEquipmentAsFavorite)
 export default equipmentRouter

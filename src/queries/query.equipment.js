@@ -24,8 +24,12 @@ export default function EquipmentQuery() {
     availability_status = $5, updated_at = $6 WHERE id = $7`
     const COUNTRELATEDBOOKINGS = `SELECT COUNT(*) AS related_bookings FROM bookings WHERE equipment_id = $1 AND status != $2`
     const REMOVEEQUIPMENT = `DELETE FROM equipment WHERE id = $1`
+    const GETSAVEDSTATUS = `SELECT is_saved FROM saves WHERE user_id = $1 AND equipment_id = $2`
+    const SAVEFAVORITE = `INSERT INTO saves (equipment_id, user_id, is_saved) VALUES ($1, $2, $3)`
+    const UPDATEFAVORITE = `UPDATE saves SET is_saved = $3 WHERE equipment_id = $1 AND user_id = $2`
     return {
         PAGINATE_EQUIPMENT, CHECKEQUIPMENT, SAVEEQUIPMENT, GETEQUIPMENTFORSEARCH, FILTEREQUIPMENTPREFIX,
-        GETEQUIPMENT, SAVEFILE, GETEQUIPMENTBYNAME, UPDATEEQUIPMENT, COUNTRELATEDBOOKINGS, REMOVEEQUIPMENT
+        GETEQUIPMENT, SAVEFILE, GETEQUIPMENTBYNAME, UPDATEEQUIPMENT, COUNTRELATEDBOOKINGS, REMOVEEQUIPMENT,
+        GETSAVEDSTATUS, SAVEFAVORITE, UPDATEFAVORITE
     }
 }
