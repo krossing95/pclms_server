@@ -7,7 +7,7 @@ const DaysValidations = () => {
         const { name, date } = data
         if (!name.match(CSVDOT_HYPHEN) || name.length === 0) return { error: 'Name is required' }
         if (!moment(date).isValid()) return { error: 'Invalid date chosen' }
-        if (moment(date).isBefore(moment(new Date()))) return { error: 'Cannot select a past dates' }
+        if (moment(date).isBefore(moment(new Date()))) return { error: 'Cannot select a past date' }
         const selectedDay = moment(date).day()
         if ((selectedDay === 6) || (selectedDay === 0)) return { error: 'Cannot select a weekend' }
         next()

@@ -8,5 +8,6 @@ const bookingsControllers = BookingControllers()
 
 bookingRouter.get('/requirements', UserMiddleware, bookingsControllers.getRequirements)
 bookingRouter.get('/slots', UserMiddleware, bookingsControllers.getSlots)
+bookingRouter.post('/', UserMiddleware, bookingsControllers.bookEquipment)
 
 export default bookingRouter
