@@ -39,7 +39,7 @@ export default function BookingControllers() {
         const equipment_id = params.get('equipment_id')
         const date = params.get('date')
         const validate = validations.validateSlotRequest({ equipment_id, date }, async () => {
-            const request_sender = RequestInformation()
+            const request_sender = RequestInformation(req, res)
             if (!Object.keys(request_sender).includes('user_id')) return res.status(401).json({ message: 'Authentication is required', code: '401', data: {} })
             const userId = request_sender.user_id
             try {
