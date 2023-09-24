@@ -44,8 +44,23 @@ export default function BookingControllers() {
             const userId = request_sender.user_id
             try {
                 const getData = await pool.query(bookingQueries.GETSLOTSDATA, [equipment_id, date, 3])
-
-
+                if (getData.rowCount === 0) return res.status(200).json({
+                    message: '', code: '200', data: {
+                        unavailable_slots: []
+                    }
+                })
+                const usersSlotExists = getData.rows.some(row => row.user_id === userId)
+                if (usersSlotExists) return res.status(412).json({ message: 'You have already booked for the equipment', code: '412', data: {} })
+                let slots = []
+                for (let i = 0; i < getData.rows.length; i++) {
+                    const row = getData.rows[i]
+                    slots = [...slots, ...row.slots]
+                }
+                return res.status(200).json({
+                    message: '', code: '200', data: {
+                        unavailable_slots: [...slots]
+                    }
+                })
             } catch (error) {
                 return res.status(500).json({ message: WSWW, code: '500', data: {} })
             }
@@ -55,6 +70,6 @@ export default function BookingControllers() {
     }
 
     return {
-        getRequirements
+        getRequirements, getSlots
     }
 }
