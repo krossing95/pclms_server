@@ -2,12 +2,15 @@ import DatabaseConnection from "../../config/config.db.js"
 import url from "url"
 import { Regex } from "../../utils/static/index.js"
 import BookingsQuery from "../../queries/query.Bookings.js"
+import BookingsValidations from "../../validators/bookings/validator.bookings.js"
+import RequestInformation from "../../helpers/helper.request_sender.js"
 
 export default function BookingControllers() {
     const { pool } = DatabaseConnection()
     const WSWW = 'Whoops! Something went wrong'
     const regex = Regex
     const bookingQueries = BookingsQuery()
+    const validations = BookingsValidations()
 
     const getRequirements = async (req, res) => {
         const params = new URLSearchParams(url.parse(req.url, true).query)
@@ -28,6 +31,27 @@ export default function BookingControllers() {
         } catch (error) {
             return res.status(500).json({ message: WSWW, code: '500', data: {} })
         }
+    }
+
+    const getSlots = async (req, res) => {
+        const params = new URLSearchParams(url.parse(req.url, true).query)
+        if (!params.get('equipment_id') || !params.get('date')) return res.status(400).json({ message: 'Bad request', code: '400', data: {} })
+        const equipment_id = params.get('equipment_id')
+        const date = params.get('date')
+        const validate = validations.validateSlotRequest({ equipment_id, date }, async () => {
+            const request_sender = RequestInformation()
+            if (!Object.keys(request_sender).includes('user_id')) return res.status(401).json({ message: 'Authentication is required', code: '401', data: {} })
+            const userId = request_sender.user_id
+            try {
+                const getData = await pool.query(bookingQueries.GETSLOTSDATA, [equipment_id, date, 3])
+
+
+            } catch (error) {
+                return res.status(500).json({ message: WSWW, code: '500', data: {} })
+            }
+        })
+        if (validate !== undefined) return res.status(412).json({ message: validate.error, code: '412', data: {} })
+        return validate
     }
 
     return {
