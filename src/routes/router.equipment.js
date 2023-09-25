@@ -27,4 +27,6 @@ equipmentRouter.get('/comments', commentControllers.getComments)
 // Saves
 equipmentRouter.post('/save', UserMiddleware, equipmentControllers.saveEquipmentAsFavorite)
 
+equipmentRouter.get('/bookings/requirements', UserMiddleware, commentControllers.getRequirements)
+
 export default equipmentRouter
