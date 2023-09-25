@@ -37,39 +37,39 @@ export default function BookingControllers() {
     }
 
     const getSlots = (req, res) => {
-        const params = new URLSearchParams(url.parse(req.url, true).query)
-        if (!params.get('equipment_id') || !params.get('date')) return res.status(400).json({ message: 'Bad request', code: '400', data: {} })
-        const equipment_id = params.get('equipment_id')
-        const date = params.get('date')
-        const validate = validations.validateSlotRequest({ equipment_id, date }, async () => {
-            const request_sender = RequestInformation(req, res)
-            if (!Object.keys(request_sender).includes('user_id')) return res.status(401).json({ message: 'Authentication is required', code: '401', data: {} })
-            const userId = request_sender.user_id
-            try {
-                const getData = await pool.query(bookingQueries.GETSLOTSDATA, [equipment_id, date, 3])
-                if (getData.rowCount === 0) return res.status(200).json({
-                    message: '', code: '200', data: {
-                        unavailable_slots: []
-                    }
-                })
-                const usersSlotExists = getData.rows.some(row => row.user_id === userId)
-                if (usersSlotExists) return res.status(412).json({ message: 'You have already booked for the equipment', code: '412', data: {} })
-                let slots = []
-                for (let i = 0; i < getData.rows.length; i++) {
-                    const row = getData.rows[i]
-                    slots = [...slots, ...row.slots]
-                }
-                return res.status(200).json({
-                    message: '', code: '200', data: {
-                        unavailable_slots: [...slots]
-                    }
-                })
-            } catch (error) {
-                return res.status(500).json({ message: WSWW, code: '500', data: {} })
-            }
-        })
-        if (validate !== undefined) return res.status(412).json({ message: validate.error, code: '412', data: {} })
-        return validate
+        // const params = new URLSearchParams(url.parse(req.url, true).query)
+        // if (!params.get('equipment_id') || !params.get('date')) return res.status(400).json({ message: 'Bad request', code: '400', data: {} })
+        // const equipment_id = params.get('equipment_id')
+        // const date = params.get('date')
+        // const validate = validations.validateSlotRequest({ equipment_id, date }, async () => {
+        //     const request_sender = RequestInformation(req, res)
+        //     if (!Object.keys(request_sender).includes('user_id')) return res.status(401).json({ message: 'Authentication is required', code: '401', data: {} })
+        //     const userId = request_sender.user_id
+        //     try {
+        //         const getData = await pool.query(bookingQueries.GETSLOTSDATA, [equipment_id, date, 3])
+        //         if (getData.rowCount === 0) return res.status(200).json({
+        //             message: '', code: '200', data: {
+        //                 unavailable_slots: []
+        //             }
+        //         })
+        //         const usersSlotExists = getData.rows.some(row => row.user_id === userId)
+        //         if (usersSlotExists) return res.status(412).json({ message: 'You have already booked for the equipment', code: '412', data: {} })
+        //         let slots = []
+        //         for (let i = 0; i < getData.rows.length; i++) {
+        //             const row = getData.rows[i]
+        //             slots = [...slots, ...row.slots]
+        //         }
+        //         return res.status(200).json({
+        //             message: '', code: '200', data: {
+        //                 unavailable_slots: [...slots]
+        //             }
+        //         })
+        //     } catch (error) {
+        //         return res.status(500).json({ message: WSWW, code: '500', data: {} })
+        //     }
+        // })
+        // if (validate !== undefined) return res.status(412).json({ message: validate.error, code: '412', data: {} })
+        // return validate
     }
 
     const bookEquipment = async (req, res) => {
