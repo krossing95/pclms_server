@@ -3,6 +3,8 @@ import { Regex } from "../../utils/static/index.js"
 import BookingsQuery from "../../queries/query.bookings.js"
 import BookingsValidations from "../../validators/bookings/validator.bookings.js"
 import RequestBodyChecker from "../../helpers/helper.request_checker.js"
+import RequestInformation from "../../helpers/helper.request_sender.js"
+import url from "url"
 
 export default function BookingControllers() {
     const { pool } = DatabaseConnection()
@@ -34,7 +36,7 @@ export default function BookingControllers() {
         }
     }
 
-    const getSlots = async (req, res) => {
+    const getSlots = (req, res) => {
         const params = new URLSearchParams(url.parse(req.url, true).query)
         if (!params.get('equipment_id') || !params.get('date')) return res.status(400).json({ message: 'Bad request', code: '400', data: {} })
         const equipment_id = params.get('equipment_id')
