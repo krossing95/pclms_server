@@ -16,11 +16,11 @@ export default function EquipmentBookingController() {
     // const { isTrueBodyStructure } = RequestBodyChecker()
 
     const requestBookingRequirements = async (req, res) => {
-        const params = new URLSearchParams(url.parse(req.url, true).query)
-        if (!params.get('equipment_id')) return res.status(412).json({ message: 'Bad request', code: '412', data: {} })
-        const equipment_id = params.get('equipment_id')
-        if (!equipment_id.match(regex.MONGOOBJECT)) return res.status(412).json({ message: 'Bad request', code: '412', data: {} })
         try {
+            const params = new URLSearchParams(url.parse(req.url, true).query)
+            if (!params.get('equipment_id')) return res.status(412).json({ message: 'Bad request', code: '412', data: {} })
+            const equipment_id = params.get('equipment_id')
+            if (!equipment_id.match(regex.MONGOOBJECT)) return res.status(412).json({ message: 'Bad request', code: '412', data: {} })
             const blockedDays = (await pool.query(bookingQueries.GETBLOCKEDDAYS)).rows
             let bookedDays = (await pool.query(bookingQueries.GETBOOKEDDAYS, [equipment_id, 3])).rows
             bookedDays = bookedDays.length > 0 ? bookedDays.filter(day => day.slots.length < 18).map(day => {
