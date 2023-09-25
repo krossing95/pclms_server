@@ -1,10 +1,10 @@
 import url from "url"
-import { ObjectId } from "bson"
+// import { ObjectId } from "bson"
 import { Regex } from "../../utils/static/index.js"
 import DatabaseConnection from "../../config/config.db.js"
 import BookingsQuery from "../../queries/query.bookings.js"
 import BookingsValidations from "../../validators/bookings/validator.bookings.js"
-import RequestInformation from "../../helpers/helper.request_sender.js"
+// import RequestInformation from "../../helpers/helper.request_sender.js"
 import RequestBodyChecker from "../../helpers/helper.request_checker.js"
 
 export default function EquipmentBookingController() {
@@ -12,8 +12,8 @@ export default function EquipmentBookingController() {
     const WSWW = 'Whoops! Something went wrong'
     const regex = Regex
     const bookingQueries = BookingsQuery()
-    const validations = BookingsValidations()
-    const { isTrueBodyStructure } = RequestBodyChecker()
+    // const validations = BookingsValidations()
+    // const { isTrueBodyStructure } = RequestBodyChecker()
 
     const requestBookingRequirements = async (req, res) => {
         const params = new URLSearchParams(url.parse(req.url, true).query)
