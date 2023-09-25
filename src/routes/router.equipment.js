@@ -3,11 +3,13 @@ import AdminMiddleware from "../middlewares/middleware.admin.js"
 import EquipmentController from "../controllers/equipment/controller.equipment.js"
 import EquipmentCommentController from "../controllers/equipment/controller.comment.js"
 import UserMiddleware from "../middlewares/middleware.user.js"
+import BookingControllers from "../controllers/equipment/controller.booking.js"
 
 const equipmentRouter = express.Router()
 
 const equipmentControllers = EquipmentController()
 const commentControllers = EquipmentCommentController()
+const bookingControllers = BookingControllers()
 
 equipmentRouter.get('/', equipmentControllers.getEquipment)
 equipmentRouter.get('/search', equipmentControllers.searchEquipment)
@@ -26,4 +28,7 @@ equipmentRouter.get('/comments', commentControllers.getComments)
 
 // Saves
 equipmentRouter.post('/save', UserMiddleware, equipmentControllers.saveEquipmentAsFavorite)
+
+// Bookings
+equipmentRouter.get('/bookings/requirements', UserMiddleware, bookingControllers.getRequirements)
 export default equipmentRouter
