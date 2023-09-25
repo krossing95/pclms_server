@@ -91,43 +91,43 @@ export default function BookingControllers() {
     }
 
     const bookEquipment = async (req, res) => {
-        let { equipment_id, date, need_assist, slots } = req.body
-        const expected_payload = ['equipment_id', 'date', 'need_assist', 'slots']
-        const checkPayload = isTrueBodyStructure(req.body, expected_payload)
-        if (!checkPayload) return res.status(400).json({ message: 'Bad request', code: '400', data: {} })
-        const validate = validations.validateBooking(req.body, async () => {
-            try {
-                const request_sender = RequestInformation(req, res)
-                if (!Object.keys(request_sender).includes('user_id')) return res.status(401).json({ message: 'Authentication is required', code: '401', data: {} })
-                const userId = request_sender.user_id
-                const checkEquipment = await pool.query(bookingQueries.CHECKEQUIPMENT, [false, equipment_id])
-                if (checkEquipment.rowCount !== 1) return res.status(412).json({ message: 'Equipment does not exists', code: '412', data: {} })
-                const equipmentData = checkEquipment.rows[0]
-                if (!equipmentData.functionality_status || !equipmentData.availability_status) return res.status(412).json({ message: 'Equipment is currently not available', code: '412', data: {} })
-                // Check if user has booked this equipment already
-                const openedBookings = await pool.query(bookingQueries.REQUIREOPENEDBOOKINGHISTORY, [equipment_id, userId, 3])
-                const { user_has_opened_booking, total_opened_bookings } = openedBookings.rows[0]
-                if (parseInt(user_has_opened_booking) > 0) return res.status(412).json({ message: 'You already have an opened reservation on this equipment', code: '412', data: {} })
-                if (parseInt(total_opened_bookings) === 3) return res.status(412).json({ message: 'You have three opened bookings existing already', code: '412', data: {} })
-                // Check unavailable slots
-                const getUnavailableSlots = await pool.query(bookingQueries.GETSLOTSDATA, [equipment_id, date, 3])
-                if (getUnavailableSlots.rowCount === 0) return EquipmentBooking(res, userId, equipment_id, date, need_assist, slots)
-                let unavailable_slots = []
-                for (let i = 0; i < getData.rows.length; i++) {
-                    const row = getData.rows[i]
-                    unavailable_slots = [...unavailable_slots, ...row.slots]
-                }
-                if (unavailable_slots.length === 0) return EquipmentBooking(res, userId, equipment_id, date, need_assist, slots)
-                // Check if the bookable slots are part of the unavailable ones
-                const checkDisparity = slots.every(slot => unavailable_slots.includes(slot))
-                if (checkDisparity) return res.status(412).json({ message: 'Some selected slots are not available', code: '412', data: {} })
-                return EquipmentBooking(res, userId, equipment_id, date, need_assist, slots)
-            } catch (error) {
-                return res.status(500).json({ message: WSWW, code: '500', data: {} })
-            }
-        })
-        if (validate !== undefined) return res.status(412).json({ message: validate.error, code: '412', data: {} })
-        return validate
+        // let { equipment_id, date, need_assist, slots } = req.body
+        // const expected_payload = ['equipment_id', 'date', 'need_assist', 'slots']
+        // const checkPayload = isTrueBodyStructure(req.body, expected_payload)
+        // if (!checkPayload) return res.status(400).json({ message: 'Bad request', code: '400', data: {} })
+        // const validate = validations.validateBooking(req.body, async () => {
+        //     try {
+        //         const request_sender = RequestInformation(req, res)
+        //         if (!Object.keys(request_sender).includes('user_id')) return res.status(401).json({ message: 'Authentication is required', code: '401', data: {} })
+        //         const userId = request_sender.user_id
+        //         const checkEquipment = await pool.query(bookingQueries.CHECKEQUIPMENT, [false, equipment_id])
+        //         if (checkEquipment.rowCount !== 1) return res.status(412).json({ message: 'Equipment does not exists', code: '412', data: {} })
+        //         const equipmentData = checkEquipment.rows[0]
+        //         if (!equipmentData.functionality_status || !equipmentData.availability_status) return res.status(412).json({ message: 'Equipment is currently not available', code: '412', data: {} })
+        //         // Check if user has booked this equipment already
+        //         const openedBookings = await pool.query(bookingQueries.REQUIREOPENEDBOOKINGHISTORY, [equipment_id, userId, 3])
+        //         const { user_has_opened_booking, total_opened_bookings } = openedBookings.rows[0]
+        //         if (parseInt(user_has_opened_booking) > 0) return res.status(412).json({ message: 'You already have an opened reservation on this equipment', code: '412', data: {} })
+        //         if (parseInt(total_opened_bookings) === 3) return res.status(412).json({ message: 'You have three opened bookings existing already', code: '412', data: {} })
+        //         // Check unavailable slots
+        //         const getUnavailableSlots = await pool.query(bookingQueries.GETSLOTSDATA, [equipment_id, date, 3])
+        //         if (getUnavailableSlots.rowCount === 0) return EquipmentBooking(res, userId, equipment_id, date, need_assist, slots)
+        //         let unavailable_slots = []
+        //         for (let i = 0; i < getData.rows.length; i++) {
+        //             const row = getData.rows[i]
+        //             unavailable_slots = [...unavailable_slots, ...row.slots]
+        //         }
+        //         if (unavailable_slots.length === 0) return EquipmentBooking(res, userId, equipment_id, date, need_assist, slots)
+        //         // Check if the bookable slots are part of the unavailable ones
+        //         const checkDisparity = slots.every(slot => unavailable_slots.includes(slot))
+        //         if (checkDisparity) return res.status(412).json({ message: 'Some selected slots are not available', code: '412', data: {} })
+        //         return EquipmentBooking(res, userId, equipment_id, date, need_assist, slots)
+        //     } catch (error) {
+        //         return res.status(500).json({ message: WSWW, code: '500', data: {} })
+        //     }
+        // })
+        // if (validate !== undefined) return res.status(412).json({ message: validate.error, code: '412', data: {} })
+        // return validate
     }
 
     return {
