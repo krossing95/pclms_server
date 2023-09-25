@@ -1,18 +1,18 @@
-import DatabaseConnection from "../../config/config.db.js"
-import { Regex } from "../../utils/static/index.js"
-import BookingsQuery from "../../queries/query.bookings.js"
-import BookingsValidations from "../../validators/bookings/validator.bookings.js"
-import RequestBodyChecker from "../../helpers/helper.request_checker.js"
-import RequestInformation from "../../helpers/helper.request_sender.js"
-import url from "url"
+// import DatabaseConnection from "../../config/config.db.js"
+// import { Regex } from "../../utils/static/index.js"
+// import BookingsQuery from "../../queries/query.bookings.js"
+// import BookingsValidations from "../../validators/bookings/validator.bookings.js"
+// import RequestBodyChecker from "../../helpers/helper.request_checker.js"
+// import RequestInformation from "../../helpers/helper.request_sender.js"
+// import url from "url"
 
 export default function BookingControllers() {
-    const { pool } = DatabaseConnection()
-    const WSWW = 'Whoops! Something went wrong'
-    const regex = Regex
-    const bookingQueries = BookingsQuery()
-    const validations = BookingsValidations()
-    const { isTrueBodyStructure } = RequestBodyChecker()
+    // const { pool } = DatabaseConnection()
+    // const WSWW = 'Whoops! Something went wrong'
+    // const regex = Regex
+    // const bookingQueries = BookingsQuery()
+    // const validations = BookingsValidations()
+    // const { isTrueBodyStructure } = RequestBodyChecker()
 
 
     const getRequirements = async (req, res) => {
