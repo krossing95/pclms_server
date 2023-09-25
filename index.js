@@ -29,7 +29,7 @@ app.use('/api/equipment', equipmentRouter)
 app.use('/api/dashboard', dashboardRoute)
 // app.use('/api/bookings', bookingRouter)
 
-app.get('/api/booking/requirement', EquipmentBookingController().requestBookingRequirements())
+// app.get('/api/booking/requirement', EquipmentBookingController().requestBookingRequirements())
 
 const server = createServer(app)
 server.listen(PORT, () => console.log(`Laboratory Management System is running on port ${PORT}`))
