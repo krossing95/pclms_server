@@ -1,15 +1,11 @@
 import express from 'express'
-// import UserMiddleware from '../middlewares/middleware.user.js'
-// import BookingControllers from '../controllers/bookings/controller.bookings.js'
+import UserMiddleware from '../middlewares/middleware.user.js'
+import EquipmentBookingController from '../controllers/bookings/controller.equipment_booking.js'
 
 const bookingRouter = express.Router()
 
-// const bookingsControllers = BookingControllers()
-bookingRouter.get('/', (req, res) => {
-    return res.status(200).json('aegafa')
-})
-// bookingRouter.get('/requirements', UserMiddleware, bookingsControllers.getBookingRequirements)
-// bookingRouter.get('/slots', UserMiddleware, bookingsControllers.getBookingSlots)
-// bookingRouter.post('/', UserMiddleware, bookingsControllers.bookEquipment)
+const bookingControllers = EquipmentBookingController()
+
+bookingRouter.get('/requirements', UserMiddleware, bookingControllers.requestBookingRequirements)
 
 export default bookingRouter
