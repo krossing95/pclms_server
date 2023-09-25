@@ -6,8 +6,8 @@ const bookingRouter = express.Router()
 
 const bookingsControllers = BookingControllers()
 
-bookingRouter.get('/requirements', UserMiddleware, bookingsControllers.getRequirements)
-bookingRouter.get('/slots', UserMiddleware, bookingsControllers.getSlots)
+bookingRouter.get('/requirements', UserMiddleware, bookingsControllers.getBookingRequirements)
+bookingRouter.get('/slots', UserMiddleware, bookingsControllers.getBookingSlots)
 bookingRouter.post('/', UserMiddleware, bookingsControllers.bookEquipment)
 
 export default bookingRouter

@@ -16,7 +16,7 @@ export default function BookingControllers() {
     const { isTrueBodyStructure } = RequestBodyChecker()
 
 
-    const getRequirements = async (req, res) => {
+    const getBookingRequirements = async (req, res) => {
         const params = new URLSearchParams(url.parse(req.url, true).query)
         if (!params.get('equipment_id')) return res.status(412).json({ message: 'Bad request', code: '412', data: {} })
         const equipment_id = params.get('equipment_id')
@@ -37,7 +37,7 @@ export default function BookingControllers() {
         }
     }
 
-    const getSlots = (req, res) => {
+    const getBookingSlots = (req, res) => {
         const params = new URLSearchParams(url.parse(req.url, true).query)
         if (!params.get('equipment_id') || !params.get('date')) return res.status(400).json({ message: 'Bad request', code: '400', data: {} })
         const equipment_id = params.get('equipment_id')
@@ -96,6 +96,6 @@ export default function BookingControllers() {
     }
 
     return {
-        getRequirements, getSlots, bookEquipment
+        getBookingRequirements, getBookingSlots, bookEquipment
     }
 }
