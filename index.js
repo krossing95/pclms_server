@@ -13,11 +13,18 @@ const app = express()
 dotenv.config()
 const PORT = process.env.PORT || process.env.LMS_PORT
 app.use(helmet())
-app.use(cors({
+const corsConfig = {
     origin: ['http://localhost:3000', 'https://pclms-app.vercel.app'],
     credentials: true,
     methods: ['GET', 'POST', 'PATCH', 'DELETE']
-}))
+}
+app.use(cors(corsConfig))
+app.options("", cors(corsConfig))
+// app.use(cors({
+//     origin: ['http://localhost:3000', 'https://pclms-app.vercel.app'],
+//     credentials: true,
+//     methods: ['GET', 'POST', 'PATCH', 'DELETE']
+// }))
 app.use(express.json({ limit: '5mb' }))
 app.get('/', (req, res) => {
     return res.send(`Welcome to Laboratory Management System`)
