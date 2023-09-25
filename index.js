@@ -1,6 +1,5 @@
 import express from 'express'
 import dotenv from 'dotenv'
-import cookieParser from 'cookie-parser'
 import helmet from 'helmet'
 import cors from 'cors'
 import { createServer } from 'http'
@@ -8,7 +7,7 @@ import usersRoute from './src/routes/router.users.js'
 import daysRouter from './src/routes/router.days.js'
 import equipmentRouter from './src/routes/router.equipment.js'
 import dashboardRoute from './src/routes/router.dashboard.js'
-import bookingRouter from './src/routes/router.bookings.js'
+// import bookingRouter from './src/routes/router.bookings.js'
 
 const app = express()
 dotenv.config()
@@ -27,7 +26,7 @@ app.use('/api/users', usersRoute)
 app.use('/api/days_management', daysRouter)
 app.use('/api/equipment', equipmentRouter)
 app.use('/api/dashboard', dashboardRoute)
-app.use('/api/bookings', bookingRouter)
+// app.use('/api/bookings', bookingRouter)
 
 const server = createServer(app)
 server.listen(PORT, () => console.log(`Laboratory Management System is running on port ${PORT}`))
