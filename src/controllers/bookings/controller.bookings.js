@@ -91,7 +91,7 @@ export default function BookingControllers() {
         }
     }
 
-    const bookEquipment = async (req, res) => {
+    const bookEquipment = (req, res) => {
         let { equipment_id, date, need_assist, slots } = req.body
         const expected_payload = ['equipment_id', 'date', 'need_assist', 'slots']
         const checkPayload = isTrueBodyStructure(req.body, expected_payload)
