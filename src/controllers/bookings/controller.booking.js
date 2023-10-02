@@ -7,6 +7,8 @@ import RequestInformation from "../../helpers/helper.request_sender.js"
 import RequestBodyChecker from "../../helpers/helper.request_checker.js"
 import { ObjectId } from "bson"
 import Pagination from "../../helpers/helper.pagination.js"
+import moment from "moment"
+import format from "pg-format"
 
 export default function BookingControllers() {
     const { pool } = DatabaseConnection()
@@ -87,11 +89,10 @@ export default function BookingControllers() {
                         unavailable_slots: []
                     }
                 })
-                const usersSlotExists = getData.rows.some(row => row.user_id === userId)
-                if (usersSlotExists) return res.status(412).json({ message: 'You have already booked for the equipment on the selected date', code: '412', data: {} })
+                const slotsWithoutUser = getData.rows.filter(slot => slot.user_id !== userId)
                 let slots = []
-                for (let i = 0; i < getData.rows.length; i++) {
-                    const row = getData.rows[i]
+                for (let i = 0; i < slotsWithoutUser.length; i++) {
+                    const row = slotsWithoutUser[i]
                     slots = [...slots, ...row.slots]
                 }
                 return res.status(200).json({
@@ -174,7 +175,21 @@ export default function BookingControllers() {
             const userId = request_sender.user_id
             const get_bookings = await pool.query(bookingQueries.PAGINATE_BOOKINGS, [false, userId])
             const bookings = get_bookings.rows
-            const paginatedData = LocalPaginator([...bookings], resultPerPage, page)
+            const pastBookingIds = bookings.filter(booking => (moment(booking.date).isBefore(moment(new Date())) && booking.status < 3)).map(booking => booking.id)
+            if (pastBookingIds.length > 0) {
+                for (let i = 0; i < pastBookingIds.length; i++) {
+                    const id = pastBookingIds[i]
+                    const cancelQuery = `UPDATE bookings SET status = $1 WHERE id = $2`
+                    await pool.query(cancelQuery, [3, id])
+                }
+            }
+            const dataToPaginate = bookings.map(booking => {
+                if (pastBookingIds.includes(booking.id)) {
+                    return { ...booking, status: 3 }
+                }
+                return booking
+            })
+            const paginatedData = LocalPaginator([...dataToPaginate], resultPerPage, page)
             return res.status(200).json({
                 message: '', code: '200', data: {
                     bookings: [...paginatedData.list],
@@ -186,11 +201,58 @@ export default function BookingControllers() {
                 }
             })
         } catch (error) {
+            console.log(error);
+            return res.status(500).json({ message: WSWW, code: '500', data: {} })
+        }
+    }
+
+    const getSingleBooking = async (req, res) => {
+        const params = new URLSearchParams(url.parse(req.url, true).query)
+        if (!params.get('booking_id')) return res.status(400).json({ message: 'Bad request', code: '400', data: {} })
+        const booking_id = params.get('booking_id')
+        if (!booking_id.match(regex.MONGOOBJECT)) return res.status(400).json({ message: 'Bad request', code: '400', data: {} })
+        try {
+            const request_sender = RequestInformation(req, res)
+            if (!Object.keys(request_sender).includes('user_id')) return res.status(401).json({ message: 'Authentication is required', code: '401', data: {} })
+            const userId = request_sender.user_id
+            const getBooking = await pool.query(bookingQueries.GETBOOKING, [false, booking_id])
+            if (getBooking.rowCount === 0) return res.status(412).json({ message: 'No records found', code: '412', data: {} })
+            const data = getBooking.rows[0]
+            if (data.user_id !== userId) return res.status(412).json({ message: 'Access denied!', code: '412', data: {} })
+            const date = data.date
+            if (moment(date).isBefore(moment(new Date())) && data.status < 3) {
+                const status = 3
+                await pool.query(bookingQueries.CANCELBOOKING, [status, booking_id])
+                data.status = status
+            }
+            return res.status(200).json({ message: '', code: '200', data: { ...data } })
+        } catch (error) {
+            return res.status(500).json({ message: WSWW, code: '500', data: {} })
+        }
+    }
+
+    const closeBooking = async (req, res) => {
+        const params = new URLSearchParams(url.parse(req.url, true).query)
+        if (!params.get('booking_id')) return res.status(400).json({ message: 'Bad request', code: '400', data: {} })
+        const booking_id = params.get('booking_id')
+        if (!booking_id.match(regex.MONGOOBJECT)) return res.status(400).json({ message: 'Bad request', code: '400', data: {} })
+        try {
+            const request_sender = RequestInformation(req, res)
+            if (!Object.keys(request_sender).includes('user_id')) return res.status(412).json({ message: 'Authentication is required', code: '412', data: {} })
+            const userId = request_sender.user_id
+            const getBooking = await pool.query(bookingQueries.GETBOOKING, [booking_id])
+            if (getBooking.rowCount === 0) return res.status(412).json({ message: 'No records found', code: '412', data: {} })
+            const data = getBooking.rows[0]
+            if (data.user_id !== userId) return res.status(412).json({ message: 'Access denied', code: '412', data: {} })
+            await pool.query(bookingQueries.REMOVEBOOKING, [booking_id])
+            return res.status(200).json({ message: 'Record removed successfully', code: '200', data: {} })
+        } catch (error) {
             return res.status(500).json({ message: WSWW, code: '500', data: {} })
         }
     }
 
     return {
-        getRequirements, getSlots, bookEquipment, getBookings
+        getRequirements, getSlots, bookEquipment, getBookings, getSingleBooking,
+        closeBooking
     }
 }

@@ -17,8 +17,15 @@ export default function BookingsQuery() {
     u.firstname, u.lastname, u.id AS user_id, e.name, 
     e.id AS equipment_id, b.created_at, b.updated_at FROM bookings b INNER JOIN users u ON u.id = b.user_id
     INNER JOIN equipment e ON e.id = b.equipment_id WHERE e.is_deleted = $1 AND b.user_id = $2 ORDER BY b.date ASC`
+    const GETBOOKING = `SELECT b.id, b.date, b.slots, b.need_assist, b.status,
+    u.firstname, u.lastname, u.id AS user_id, e.name, e.photo_url,
+    e.id AS equipment_id, b.created_at, b.updated_at FROM bookings b INNER JOIN users u ON u.id = b.user_id
+    INNER JOIN equipment e ON e.id = b.equipment_id WHERE e.is_deleted = $1 AND b.id = $2`
+    const CANCELBOOKING = `UPDATE bookings SET status = $1 WHERE id = $2`
+    const REMOVEBOOKING = `DELETE FROM bookings WHERE id = $1`
+
     return {
         GETBLOCKEDDAYS, GETBOOKEDDAYS, GETSLOTSDATA, CHECKEQUIPMENT, REQUIREOPENEDBOOKINGHISTORY,
-        CREATEBOOKING, CANCELPASTBOOKINGS, PAGINATE_BOOKINGS
+        CREATEBOOKING, CANCELPASTBOOKINGS, PAGINATE_BOOKINGS, GETBOOKING, CANCELBOOKING, REMOVEBOOKING
     }
 }
