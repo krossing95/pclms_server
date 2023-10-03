@@ -9,6 +9,7 @@ import { ObjectId } from "bson"
 import Pagination from "../../helpers/helper.pagination.js"
 import moment from "moment"
 import format from "pg-format"
+import needle from "needle"
 
 export default function BookingControllers() {
     const { pool } = DatabaseConnection()
@@ -149,8 +150,8 @@ export default function BookingControllers() {
                 const getUnavailableSlots = await pool.query(bookingQueries.GETSLOTSDATA, [equipment_id, date, 3])
                 if (getUnavailableSlots.rowCount === 0) return EquipmentBooking(res, userId, equipment_id, date, need_assist, slots)
                 let unavailable_slots = []
-                for (let i = 0; i < getData.rows.length; i++) {
-                    const row = getData.rows[i]
+                for (let i = 0; i < getUnavailableSlots.rows.length; i++) {
+                    const row = getUnavailableSlots.rows[i]
                     unavailable_slots = [...unavailable_slots, ...row.slots]
                 }
                 if (unavailable_slots.length === 0) return EquipmentBooking(res, userId, equipment_id, date, need_assist, slots)
@@ -201,7 +202,6 @@ export default function BookingControllers() {
                 }
             })
         } catch (error) {
-            console.log(error);
             return res.status(500).json({ message: WSWW, code: '500', data: {} })
         }
     }
@@ -231,7 +231,7 @@ export default function BookingControllers() {
         }
     }
 
-    const closeBooking = async (req, res) => {
+    const removeBooking = async (req, res) => {
         const params = new URLSearchParams(url.parse(req.url, true).query)
         if (!params.get('booking_id')) return res.status(400).json({ message: 'Bad request', code: '400', data: {} })
         const booking_id = params.get('booking_id')
@@ -240,7 +240,7 @@ export default function BookingControllers() {
             const request_sender = RequestInformation(req, res)
             if (!Object.keys(request_sender).includes('user_id')) return res.status(412).json({ message: 'Authentication is required', code: '412', data: {} })
             const userId = request_sender.user_id
-            const getBooking = await pool.query(bookingQueries.GETBOOKING, [booking_id])
+            const getBooking = await pool.query(bookingQueries.GETBOOKING, [false, booking_id])
             if (getBooking.rowCount === 0) return res.status(412).json({ message: 'No records found', code: '412', data: {} })
             const data = getBooking.rows[0]
             if (data.user_id !== userId) return res.status(412).json({ message: 'Access denied', code: '412', data: {} })
@@ -251,8 +251,102 @@ export default function BookingControllers() {
         }
     }
 
+    const UpdateBooking = async (res, data, booking_id, date, need_assist, slots) => {
+        try {
+            const timestamp = (new Date()).toISOString()
+            const status = 1
+            const update_count = data.update_count + 1
+            await pool.query(bookingQueries.UPDATEBOOKING, [date, status, need_assist, slots, timestamp, update_count, booking_id])
+            const getAdmins = await pool.query(bookingQueries.GETADMINCONTACTS, [2])
+            if (getAdmins.rowCount === 0) return res.status(200).json({
+                message: 'Record was updated successfully', code: '200', data: {
+                    ...data,
+                    date,
+                    need_assist,
+                    slots,
+                    update_count,
+                    updated_at: timestamp,
+                    functionality_status: undefined,
+                    availability_status: undefined
+                }
+            })
+            const contacts = getAdmins.rows.map(row => `233${parseInt(row.phone)}}`)
+            await needle(
+                "post", process.env.LMS_MESSENGER_URL,
+                {
+                    "sender": process.env.LMS_MESSENGER_NAME,
+                    "message": ``,
+                    "recipients": [...contacts]
+                },
+                {
+                    headers: {
+                        'api-key': process.env.LMS_MESSENGER_API_KEY,
+                        'Content-Type': 'application/json'
+                    }
+                }
+            )
+            return res.status(200).json({
+                message: 'Record was updated successfully', code: '200', data: {
+                    ...data,
+                    date,
+                    need_assist,
+                    slots,
+                    updated_at: timestamp,
+                    functionality_status: undefined,
+                    availability_status: undefined
+                }
+            })
+        } catch (error) {
+            return res.status(500).json({ message: WSWW, code: '500', data: {} })
+        }
+    }
+
+    const updateBooking = async (req, res) => {
+        let { booking_id, date, need_assist, slots } = req.body
+        const expected_payload = ['booking_id', 'date', 'need_assist', 'slots']
+        const checkPayload = isTrueBodyStructure(req.body, expected_payload)
+        if (!checkPayload) return res.status(400).json({ message: 'Bad request', code: '400', data: {} })
+        req.body = { ...req.body, equipment_id: booking_id }
+        const validate = validations.validateBooking(req.body, async () => {
+            try {
+                const request_sender = RequestInformation(req, res)
+                if (!Object.keys(request_sender).includes('user_id')) return res.status(401).json({ message: 'Authentication is required', code: '401', data: {} })
+                const userId = request_sender.user_id
+                const getBooking = await pool.query(bookingQueries.GETBOOKINGFORUPDATE, [false, booking_id])
+                if (getBooking.rowCount !== 1) return res.status(412).json({ message: 'No records found', code: '412', data: {} })
+                const data = getBooking.rows[0]
+                if (data.user_id !== userId) return res.status(412).json({ message: 'Access denied', code: '412', data: {} })
+                if (data.update_count > 3) {
+                    await pool.query(bookingQueries.CANCELBOOKING, [3, booking_id])
+                    return res.status(412).json({ message: 'Booking was closed due to too many updates on the record', code: '412', data: {} })
+                }
+                if (data.status === 3) return res.status(412).json({ message: 'Cannot update a closed booking', code: '412', data: {} })
+                if (moment(data.date).isBefore(moment(new Date()))) {
+                    await pool.query(bookingQueries.CANCELBOOKING, [3, booking_id])
+                    return res.status(412).json({ message: 'The scheduled appointment date has elapsed, resulting in automatic closure of the booking', code: '412', data: {} })
+                }
+                if (!data.functionality_status || !data.availability_status) return res.status(412).json({ message: 'The equipment is currently not accessible for booking', code: '412', data: {} })
+                const getUnavailableSlots = await pool.query(bookingQueries.GETSLOTSDATA, [data.equipment_id, date, 3])
+                if (getUnavailableSlots.rowCount === 0) return UpdateBooking(res, data, booking_id, date, need_assist, slots)
+                const slotsWithoutUser = getUnavailableSlots.rows.filter(slot => slot.user_id !== userId)
+                let unavailable_slots = []
+                for (let i = 0; i < slotsWithoutUser.length; i++) {
+                    const row = slotsWithoutUser[i]
+                    unavailable_slots = [...unavailable_slots, ...row.slots]
+                }
+                if (unavailable_slots.length === 0) return UpdateBooking(res, data, booking_id, date, need_assist, slots)
+                const checkDisparity = slots.every(slot => unavailable_slots.includes(slot))
+                if (checkDisparity) return res.status(412).json({ message: 'Some selected slots are not available', code: '412', data: {} })
+                return UpdateBooking(res, data, booking_id, date, need_assist, slots)
+            } catch (error) {
+                return res.status(500).json({ message: WSWW, code: '500', data: {} })
+            }
+        })
+        if (validate !== undefined) return res.status(412).json({ message: validate.error, code: '412', data: {} })
+    }
+
     return {
         getRequirements, getSlots, bookEquipment, getBookings, getSingleBooking,
-        closeBooking
+        removeBooking, updateBooking
     }
 }
