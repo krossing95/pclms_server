@@ -275,7 +275,7 @@ export default function BookingControllers() {
                 "post", process.env.LMS_MESSENGER_URL,
                 {
                     "sender": process.env.LMS_MESSENGER_NAME,
-                    "message": ``,
+                    "message": `Hello admin, there are pending bookings, waiting for approval`,
                     "recipients": [...contacts]
                 },
                 {
