@@ -26,7 +26,18 @@ export default function BookingsValidations() {
         next()
     }
 
+    const validateBookingFilter = (data, next) => {
+        const { from, to, status } = data
+        if (!moment(from).isValid() || !moment(to).isValid()) return { error: 'Invalid date range formation' }
+        if (moment(to).isBefore(moment(from))) return { error: 'Inappropriate date range formation' }
+        const statusIsBlank = status.toString().length === 0
+        if (!statusIsBlank) {
+            if (![1, 2, 3].includes(Number(status))) return { error: 'Data rejected' }
+        }
+        next()
+    }
+
     return {
-        validateSlotRequest, validateBooking
+        validateSlotRequest, validateBooking, validateBookingFilter
     }
 }

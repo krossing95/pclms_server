@@ -8,14 +8,17 @@ export default function DashboardController() {
     const WSWW = 'Whoops! Something went wrong'
 
     const FetchUserData = async (userId) => {
-        // equipment, bookings, favorites
         try {
             const getData = await pool.query(sqlQuery.GETUSERDATA, [userId])
             const data = getData.rows[0]
             return {
                 available_equipment: parseInt(data.available_equipment),
                 unavailable_equipment: parseInt(data.unavailable_equipment),
-                favorite_list: parseInt(data.favorite_list)
+                closed_bookings: parseInt(data.closed_bookings),
+                approved_bookings: parseInt(data.approved_bookings),
+                pending_bookings: parseInt(data.pending_bookings),
+                saved_equipment: parseInt(data.favorite_list),
+                unsaved_equipment: (parseInt(data.available_equipment) + parseInt(data.unavailable_equipment)) - parseInt(data.favorite_list)
             }
         } finally {
             console.log(true)

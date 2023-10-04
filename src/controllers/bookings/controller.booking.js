@@ -8,8 +8,8 @@ import RequestBodyChecker from "../../helpers/helper.request_checker.js"
 import { ObjectId } from "bson"
 import Pagination from "../../helpers/helper.pagination.js"
 import moment from "moment"
-import format from "pg-format"
 import needle from "needle"
+import StringManipulators from "../../helpers/helper.string_methods.js"
 
 export default function BookingControllers() {
     const { pool } = DatabaseConnection()
@@ -21,6 +21,7 @@ export default function BookingControllers() {
     const { LocalPaginator, Setter, GetPageParams } = Pagination()
     const requirementsPerPage = 10
     const resultPerPage = Number(process.env.LMS_PAGE_DENSITY)
+    const string_methods = StringManipulators()
 
     const getRequirements = async (req, res) => {
         const params = new URLSearchParams(url.parse(req.url, true).query)
@@ -167,16 +168,15 @@ export default function BookingControllers() {
         return validate
     }
 
-    const getBookings = async (req, res) => {
-        const params = new URLSearchParams(url.parse(req.url, true).query)
-        const { pageSize, offset, page } = Setter(params, 1, resultPerPage)
+    const getBookingList = async (usertype, userId) => {
         try {
-            const request_sender = RequestInformation(req, res)
-            if (!Object.keys(request_sender).includes('user_id')) return res.status(401).json({ message: 'Authentication is required', code: '401', data: {} })
-            const userId = request_sender.user_id
-            const get_bookings = await pool.query(bookingQueries.PAGINATE_BOOKINGS, [false, userId])
-            const bookings = get_bookings.rows
-            const pastBookingIds = bookings.filter(booking => (moment(booking.date).isBefore(moment(new Date())) && booking.status < 3)).map(booking => booking.id)
+            let returnedData = []
+            const get_bookings = await pool.query(bookingQueries.PAGINATE_BOOKINGS, [false])
+            let bookinglist = get_bookings.rows
+            if (bookinglist.length === 0) return returnedData
+            bookinglist = usertype === Number(process.env.LMS_ADMIN) ? [...bookinglist] : usertype === Number(process.env.LMS_USER) ? [...bookinglist].filter(row => row.user_id === userId) : []
+            if (bookinglist.length === 0) return returnedData
+            const pastBookingIds = bookinglist.filter(booking => (moment(booking.date).isBefore(moment(new Date())) && booking.status < 3)).map(booking => booking.id)
             if (pastBookingIds.length > 0) {
                 for (let i = 0; i < pastBookingIds.length; i++) {
                     const id = pastBookingIds[i]
@@ -184,13 +184,42 @@ export default function BookingControllers() {
                     await pool.query(cancelQuery, [3, id])
                 }
             }
-            const dataToPaginate = bookings.map(booking => {
+            const dataToPaginate = bookinglist.map(booking => {
                 if (pastBookingIds.includes(booking.id)) {
                     return { ...booking, status: 3 }
                 }
                 return booking
             })
-            const paginatedData = LocalPaginator([...dataToPaginate], resultPerPage, page)
+            return dataToPaginate
+        } finally {
+            console.log(true)
+        }
+    }
+
+    const getBookings = async (req, res) => {
+        const params = new URLSearchParams(url.parse(req.url, true).query)
+        const { pageSize, page } = Setter(params, 1, resultPerPage)
+        const emptyDataStructure = {
+            bookings: [],
+            page_data: {
+                totalCount: 0,
+                totalPages: 0,
+                currentPage: page, pageSize
+            }
+        }
+        try {
+            const request_sender = RequestInformation(req, res)
+            if (!Object.keys(request_sender).includes('user_id') ||
+                !Object.keys(request_sender).includes('usertype')) return res.status(401).json({ message: 'Authentication is required', code: '401', data: {} })
+            const userId = request_sender.user_id
+            const usertype = request_sender.usertype
+            const booking_list = await getBookingList(usertype, userId)
+            if (booking_list.length === 0) return res.status(200).json({
+                message: '', code: '200', data: {
+                    ...emptyDataStructure
+                }
+            })
+            const paginatedData = LocalPaginator([...booking_list], resultPerPage, page)
             return res.status(200).json({
                 message: '', code: '200', data: {
                     bookings: [...paginatedData.list],
@@ -212,13 +241,9 @@ export default function BookingControllers() {
         const booking_id = params.get('booking_id')
         if (!booking_id.match(regex.MONGOOBJECT)) return res.status(400).json({ message: 'Bad request', code: '400', data: {} })
         try {
-            const request_sender = RequestInformation(req, res)
-            if (!Object.keys(request_sender).includes('user_id')) return res.status(401).json({ message: 'Authentication is required', code: '401', data: {} })
-            const userId = request_sender.user_id
             const getBooking = await pool.query(bookingQueries.GETBOOKING, [false, booking_id])
             if (getBooking.rowCount === 0) return res.status(412).json({ message: 'No records found', code: '412', data: {} })
             const data = getBooking.rows[0]
-            if (data.user_id !== userId) return res.status(412).json({ message: 'Access denied!', code: '412', data: {} })
             const date = data.date
             if (moment(date).isBefore(moment(new Date())) && data.status < 3) {
                 const status = 3
@@ -231,6 +256,18 @@ export default function BookingControllers() {
         }
     }
 
+    const RemoveBooking = async (res, booking_id) => {
+        try {
+            await pool.query(bookingQueries.REMOVEBOOKING, [booking_id])
+            return res.status(200).json({
+                message: 'Record removed successfully', code: '200',
+                data: {}
+            })
+        } catch (error) {
+            return res.status(500).json({ message: WSWW, code: '500', data: {} })
+        }
+    }
+
     const removeBooking = async (req, res) => {
         const params = new URLSearchParams(url.parse(req.url, true).query)
         if (!params.get('booking_id')) return res.status(400).json({ message: 'Bad request', code: '400', data: {} })
@@ -238,14 +275,16 @@ export default function BookingControllers() {
         if (!booking_id.match(regex.MONGOOBJECT)) return res.status(400).json({ message: 'Bad request', code: '400', data: {} })
         try {
             const request_sender = RequestInformation(req, res)
-            if (!Object.keys(request_sender).includes('user_id')) return res.status(412).json({ message: 'Authentication is required', code: '412', data: {} })
+            if (!Object.keys(request_sender).includes('user_id') ||
+                !Object.keys(request_sender).includes('usertype')) return res.status(412).json({ message: 'Authentication is required', code: '412', data: {} })
             const userId = request_sender.user_id
+            const usertype = request_sender.usertype
             const getBooking = await pool.query(bookingQueries.GETBOOKING, [false, booking_id])
             if (getBooking.rowCount === 0) return res.status(412).json({ message: 'No records found', code: '412', data: {} })
             const data = getBooking.rows[0]
+            if (usertype === Number(process.env.LMS_ADMIN)) return RemoveBooking(res, booking_id)
             if (data.user_id !== userId) return res.status(412).json({ message: 'Access denied', code: '412', data: {} })
-            await pool.query(bookingQueries.REMOVEBOOKING, [booking_id])
-            return res.status(200).json({ message: 'Record removed successfully', code: '200', data: {} })
+            return RemoveBooking(res, booking_id)
         } catch (error) {
             return res.status(500).json({ message: WSWW, code: '500', data: {} })
         }
@@ -345,8 +384,93 @@ export default function BookingControllers() {
         if (validate !== undefined) return res.status(412).json({ message: validate.error, code: '412', data: {} })
     }
 
+    const searchBookings = async (req, res) => {
+        const params = new URLSearchParams(url.parse(req.url, true).query)
+        const { pageSize, page } = Setter(params, 1, resultPerPage)
+        const structure = {
+            bookings: [],
+            page_data: {
+                totalPages: 0, totalCount: 0, currentPage: page, pageSize
+            },
+            data_type: ''
+        }
+        if (!params.get('q')) return res.status(200).json({ message: 'Search query is missing', code: '200', data: { ...structure } })
+        const q = string_methods.cleanExcessWhiteSpaces(params.get('q')).toLowerCase()
+        try {
+            const request_sender = RequestInformation(req, res)
+            if (!Object.keys(request_sender).includes('user_id') ||
+                !Object.keys(request_sender).includes('usertype')) return res.status(401).json({ message: 'Authentication is required', code: '401', data: {} })
+            const userId = request_sender.user_id
+            const usertype = request_sender.usertype
+            const booking_list = await getBookingList(usertype, userId)
+            const matches = booking_list.filter(item => JSON.stringify(item).toLowerCase().includes(q))
+            const paginatedData = LocalPaginator([...matches], resultPerPage, page)
+            return res.status(200).json({
+                message: '', code: '200', data: {
+                    bookings: [...paginatedData.list],
+                    page_data: {
+                        totalCount: paginatedData.totalCount,
+                        totalPages: paginatedData.totalPages,
+                        currentPage: page, pageSize
+                    },
+                    data_type: paginatedData.totalPages > 1 ? 'search' : ''
+                }
+            })
+        } catch (error) {
+            return res.status(500).json({ message: WSWW, code: '500', data: {} })
+        }
+    }
+
+    const filterBookings = async (req, res) => {
+        const params = new URLSearchParams(url.parse(req.url, true).query)
+        const { pageSize, page } = Setter(params, 1, resultPerPage)
+        const structure = {
+            bookings: [],
+            page_data: {
+                totalPages: 0, totalCount: 0, currentPage: page, pageSize
+            },
+            data_type: ''
+        }
+        if (!params.get('from') || !params.get('to')) return res.status(200).json({ message: '', code: '200', data: { ...structure } })
+        const from = params.get('from')
+        const to = params.get('to')
+        const status = !params.get('status') ? '' : params.get('status')
+        const validate = validations.validateBookingFilter({ from, to, status }, async () => {
+            try {
+                const request_sender = RequestInformation(req, res)
+                if (!Object.keys(request_sender).includes('user_id') ||
+                    !Object.keys(request_sender).includes('usertype')) return res.status(401).json({ message: 'Authentication is required', code: '401', data: {} })
+                const userId = request_sender.user_id
+                const usertype = request_sender.usertype
+                const booking_list = await getBookingList(usertype, userId)
+                if (booking_list.length === 0) return res.status(200).json({ message: '', code: '200', data: { ...structure } })
+                const newFrom = moment(from).subtract(1, "days").format("YYYY-MM-DD")
+                const newTo = moment(to).add(1, "days").format("YYYY-MM-DD")
+                let filtered_data = booking_list.filter(row => moment(row.date).isBetween(newFrom, newTo))
+                if ([1, 2, 3].includes(Number(status))) {
+                    filtered_data = filtered_data.filter(row => row.status === Number(status))
+                }
+                const paginatedData = LocalPaginator([...filtered_data], resultPerPage, page)
+                return res.status(200).json({
+                    message: '', code: '200', data: {
+                        bookings: [...paginatedData.list],
+                        page_data: {
+                            totalCount: paginatedData.totalCount,
+                            totalPages: paginatedData.totalPages,
+                            currentPage: page, pageSize
+                        },
+                        data_type: paginatedData.totalPages > 1 ? 'filter' : ''
+                    }
+                })
+            } catch (error) {
+                return res.status(500).json({ message: WSWW, code: '500', data: {} })
+            }
+        })
+        if (validate !== undefined) return res.status(412).json({ message: validate.error, code: '412', data: {} })
+    }
+
     return {
         getRequirements, getSlots, bookEquipment, getBookings, getSingleBooking,
-        removeBooking, updateBooking
+        removeBooking, updateBooking, searchBookings, filterBookings
     }
 }

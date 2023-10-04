@@ -16,7 +16,7 @@ export default function BookingsQuery() {
     const PAGINATE_BOOKINGS = `SELECT b.id, b.date, b.slots, b.need_assist, b.status,
     u.firstname, u.lastname, u.id AS user_id, e.name, 
     e.id AS equipment_id, b.created_at, b.updated_at, b.update_count FROM bookings b INNER JOIN users u ON u.id = b.user_id
-    INNER JOIN equipment e ON e.id = b.equipment_id WHERE e.is_deleted = $1 AND b.user_id = $2 ORDER BY b.date ASC`
+    INNER JOIN equipment e ON e.id = b.equipment_id WHERE e.is_deleted = $1 ORDER BY b.date ASC`
     const GETBOOKING = `SELECT b.id, b.date, b.slots, b.need_assist, b.status,
     u.firstname, u.lastname, u.id AS user_id, e.name, e.photo_url,
     e.id AS equipment_id, b.created_at, b.updated_at, b.update_count FROM bookings b INNER JOIN users u ON u.id = b.user_id

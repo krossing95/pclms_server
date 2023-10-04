@@ -10,8 +10,10 @@ bookingRoute.get('/requirements', UserMiddleware, bookingMethods.getRequirements
 bookingRoute.get('/slots', UserMiddleware, bookingMethods.getSlots)
 bookingRoute.post('/', UserMiddleware, bookingMethods.bookEquipment)
 bookingRoute.get('/', UserMiddleware, bookingMethods.getBookings)
-bookingRoute.get('/single', UserMiddleware, bookingMethods.getSingleBooking)
+bookingRoute.get('/single', bookingMethods.getSingleBooking)
 bookingRoute.delete('/', UserMiddleware, bookingMethods.removeBooking)
 bookingRoute.patch('/', UserMiddleware, bookingMethods.updateBooking)
+bookingRoute.get('/search', UserMiddleware, bookingMethods.searchBookings)
+bookingRoute.get('/filter', UserMiddleware, bookingMethods.filterBookings)
 
 export default bookingRoute

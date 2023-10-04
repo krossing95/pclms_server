@@ -8,6 +8,7 @@ import daysRouter from './src/routes/router.days.js'
 import equipmentRouter from './src/routes/router.equipment.js'
 import dashboardRoute from './src/routes/router.dashboard.js'
 import bookingRoute from './src/routes/router.booking.js'
+import favoritesRouter from './src/routes/router.favorites.js'
 
 const app = express()
 dotenv.config()
@@ -27,5 +28,6 @@ app.use('/api/days_management', daysRouter)
 app.use('/api/equipment', equipmentRouter)
 app.use('/api/dashboard', dashboardRoute)
 app.use('/api/bookings', bookingRoute)
+app.use('/api/favorites', favoritesRouter)
 const server = createServer(app)
 server.listen(PORT, () => console.log(`Laboratory Management System is running on port ${PORT}`))
