@@ -11,10 +11,12 @@ export default function UsersQuery() {
     const CHECKEQUIPMENTBYUSER = `SELECT COUNT(e.id) AS equipments_registered_by_user FROM equipment e INNER JOIN users u ON 
     e.created_by = u.id WHERE u.id = $1`
     const DELETEUSER = `DELETE FROM users WHERE id = $1`
+    const GETPASSWORD = `SELECT password FROM users WHERE id = $1`
+    const UPDATEPASSWORD = `UPDATE users SET password = $1 WHERE id = $2`
     const CLEARCREDENTIALS = `UPDATE users SET email = $1, phone = $1, is_deleted = $2 WHERE id = $3`
 
     return {
         PAGINATE_USERS, GETUSERSFORSEARCH, GETUSER, UPDATEUSER, CHECKEQUIPMENTBYUSER,
-        DELETEUSER, CLEARCREDENTIALS
+        DELETEUSER, CLEARCREDENTIALS, GETPASSWORD, UPDATEPASSWORD
     }
 }

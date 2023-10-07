@@ -7,18 +7,21 @@ import url from "url"
 import UserValidations from "../../validators/users/validate.users.js"
 import AuthQuery from "../../queries/query.auth.js"
 import { Regex } from "../../utils/static/index.js"
+import RequestInformation from "../../helpers/helper.request_sender.js"
+import { compareSync, genSaltSync, hashSync } from "bcrypt"
 
 export default function UsersController() {
     const { pool } = DatabaseConnection()
     const WSWW = 'Whoops! Something went wrong'
-    const { PAGINATE_USERS, GETUSERSFORSEARCH, GETUSER, UPDATEUSER, CHECKEQUIPMENTBYUSER, DELETEUSER, CLEARCREDENTIALS } = UsersQuery()
+    const { PAGINATE_USERS, GETUSERSFORSEARCH, GETUSER, GETPASSWORD, UPDATEPASSWORD, UPDATEUSER, CHECKEQUIPMENTBYUSER, DELETEUSER, CLEARCREDENTIALS } = UsersQuery()
     const { CHECKUSERINSTANCE } = AuthQuery()
     const { isTrueBodyStructure } = RequestBodyChecker()
     const { cleanSCW, cleanExcessWhiteSpaces } = StringManipulators()
     const { LocalPaginator, Setter, GetPageParams } = Pagination()
-    const { validateUserUpdate } = UserValidations()
+    const { validateUserUpdate, validatePasswordUpdate } = UserValidations()
     const resultPerPage = Number(process.env.LMS_PAGE_DENSITY)
     const { MONGOOBJECT } = Regex
+    const SALT = genSaltSync(10)
 
     const getUsers = async (req, res) => {
         const params = new URLSearchParams(url.parse(req.url, true).query)
@@ -165,8 +168,74 @@ export default function UsersController() {
             return res.status(500).json({ message: WSWW, code: '500', data: {} })
         }
     }
+    // User profile
+    const getAuthedUser = async (req, res) => {
+        const request_sender = RequestInformation(req, res)
+        if (!Object.keys(request_sender).includes('user_id')) return res.status(401).json({ message: 'Authentication is required', code: '401', data: {} })
+        const userId = request_sender.user_id
+        try {
+            const getUser = await pool.query(GETUSER, [userId])
+            if (getUser.rowCount === 0) return res.status(412).json({ message: 'No user records found', code: '412', data: {} })
+            return res.status(200).json({ message: '', code: '200', data: { ...getUser.rows[0], row_id: undefined } })
+        } catch (error) {
+            return res.status(500).json({ message: WSWW, code: '500', data: {} })
+        }
+    }
+
+    const updateAuthedUser = async (req, res) => {
+        let { firstname, lastname, email, phone } = req.body
+        const request_sender = RequestInformation(req, res)
+        if (!Object.keys(request_sender).includes('user_id')) return res.status(401).json({ message: 'Authentication is required', code: '401', data: {} })
+        const userId = request_sender.user_id
+        req.body = { ...req.body, id: userId, usertype: 1 }
+        const validate = validateUserUpdate(req.body, async () => {
+            try {
+                firstname = cleanSCW(firstname)
+                lastname = cleanSCW(lastname)
+                email = email.trim()
+                phone = cleanExcessWhiteSpaces(phone)
+                const getUser = await pool.query(GETUSER, [userId])
+                if (getUser.rowCount === 0) return res.status(412).json({ message: 'User account not found', code: '412', data: {} })
+                const data = getUser.rows[0]
+                if (firstname === data.firstname &&
+                    lastname === data.lastname &&
+                    email === data.email &&
+                    phone === data.phone) return res.status(412).json({ message: 'No changes found', code: '412', data: {} })
+                const getDataInstance = await pool.query(CHECKUSERINSTANCE, [email, phone])
+                if (getDataInstance.rowCount === 0) return UpdateUserInformation(res, data, userId, firstname, lastname, email, phone, data.usertype)
+                const isNotOwned = getDataInstance.rows.some(item => item.id !== userId)
+                if (isNotOwned) return res.status(412).json({ message: 'Email address or phone number has been taken', code: '412', data: {} })
+                return UpdateUserInformation(res, data, userId, firstname, lastname, email, phone, data.usertype)
+            } catch (error) {
+                return res.status(500).json({ message: WSWW, code: '500', data: {} })
+            }
+        })
+        if (validate !== undefined) return res.status(412).json({ message: validate.error, code: '412', data: {} })
+    }
+
+    const passwordUpdate = async (req, res) => {
+        let { old_password, new_password, confirm_password } = req.body
+        const request_sender = RequestInformation(req, res)
+        if (!Object.keys(request_sender).includes('user_id')) return res.status(401).json({ message: 'Authentication is required', code: '401', data: {} })
+        const userId = request_sender.user_id
+        const validate = validatePasswordUpdate(req.body, async () => {
+            try {
+                const getDBPassword = await pool.query(GETPASSWORD, [userId])
+                if (getDBPassword.rowCount === 0) return res.status(412).json({ message: 'User account not found', code: '412', data: {} })
+                const password = getDBPassword.rows[0].password
+                const oldPasswordMatched = compareSync(old_password, password)
+                if (!oldPasswordMatched) return res.status(412).json({ message: 'Old password is not correct', code: '412', data: {} })
+                const hashedNewPassword = hashSync(new_password, SALT)
+                await pool.query(UPDATEPASSWORD, [hashedNewPassword, userId])
+                return res.status(200).json({ message: 'Password update was successful', code: '200', data: {} })
+            } catch (error) {
+                return res.status(500).json({ message: WSWW, code: '500', data: {} })
+            }
+        })
+        if (validate !== undefined) return res.status(412).json({ message: validate.error, code: '412', data: {} })
+    }
 
     return {
-        getUsers, searchUsers, updateUser, removeUser
+        getUsers, searchUsers, updateUser, removeUser, getAuthedUser, updateAuthedUser, passwordUpdate
     }
 }

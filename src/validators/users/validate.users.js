@@ -2,7 +2,7 @@ import StringManipulators from "../../helpers/helper.string_methods.js"
 import { Regex } from "../../utils/static/index.js"
 
 export default function UserValidations() {
-    const { ALPHA, MONGOOBJECT, NUMERICAL, EMAIL } = Regex
+    const { ALPHA, MONGOOBJECT, NUMERICAL, EMAIL, PASSWORD } = Regex
     const { cleanExcessWhiteSpaces } = StringManipulators()
 
     const validateUserUpdate = (data, next) => {
@@ -22,7 +22,15 @@ export default function UserValidations() {
         next()
     }
 
+    const validatePasswordUpdate = (data, next) => {
+        const { old_password, new_password, confirm_password } = data
+        if (!old_password.match(PASSWORD) || !new_password.match(PASSWORD) || !confirm_password.match(PASSWORD)) return { error: 'Password must contain uppercase, lowercase alphabets, numbers and special chars' }
+        if (old_password.length < 8 || new_password.length < 8) return { error: 'Password must contain at least 8 chars' }
+        if (new_password !== confirm_password) return { error: 'Password do not match' }
+        next()
+    }
+
     return {
-        validateUserUpdate
+        validateUserUpdate, validatePasswordUpdate
     }
 }
