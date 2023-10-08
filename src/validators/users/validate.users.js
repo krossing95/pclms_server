@@ -24,7 +24,7 @@ export default function UserValidations() {
 
     const validatePasswordUpdate = (data, next) => {
         const { old_password, new_password, confirm_password } = data
-        if (!old_password.match(PASSWORD) || !new_password.match(PASSWORD) || !confirm_password.match(PASSWORD)) return { error: 'Password must contain uppercase, lowercase alphabets, numbers and special chars' }
+        if (!old_password.match(PASSWORD) || !new_password.match(PASSWORD) || !confirm_password.match(PASSWORD)) return { error: 'The password must include a combination of uppercase and lowercase English letters, at least one digit, and at least one special character' }
         if (old_password.length < 8 || new_password.length < 8) return { error: 'Password must contain at least 8 chars' }
         if (new_password !== confirm_password) return { error: 'Password do not match' }
         next()

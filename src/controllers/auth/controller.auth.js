@@ -11,15 +11,18 @@ import RequestInformation from "../../helpers/helper.request_sender.js"
 import moment from "moment"
 import { Regex } from "../../utils/static/index.js"
 import BotActionChecker from "../../helpers/helper.google_captcha.js"
+import { v4 as uniqueString } from "uuid"
+import UsersQuery from "../../queries/query.users.js"
 
 export default function AuthController() {
     const WSWW = 'Whoops! Something went wrong'
     const { isTrueBodyStructure } = RequestBodyChecker()
-    const { validateRegistration, loginValidator } = AuthValidations()
+    const { validateRegistration, loginValidator, validateForgotPassword, passwordResetValidator } = AuthValidations()
     const { cleanSCW, cleanExcessWhiteSpaces } = StringManipulators()
     const { pool } = DatabaseConnection()
     const { MONGOOBJECT, NUMERICAL } = Regex
-    const { CHECKUSERINSTANCE, CREATEUSER, GETUSER, GETPHONE, VERIFYUSER } = AuthQuery()
+    const { UPDATEPASSWORD } = UsersQuery()
+    const { CHECKUSERINSTANCE, CREATEUSER, GETUSER, GETPHONE, VERIFYUSER, CLEAROLDREQUESTS, CREATEREQUEST, GETREQUEST } = AuthQuery()
     const SALT = genSaltSync(10)
     const { sign } = JWT.default
 
@@ -191,7 +194,81 @@ export default function AuthController() {
         })
     }
 
+    const forgotPassword = async (req, res) => {
+        let { phone, captcha } = req.body
+        const expected_payload = ['phone', 'captcha']
+        const checkPayload = isTrueBodyStructure(req.body, expected_payload)
+        if (!checkPayload) return res.status(400).json({ message: 'Bad request', code: '400', data: {} })
+        if (captcha.length === 0) return res.status(400).json({ message: 'Bad request', code: '400', data: {} })
+        return await BotActionChecker(req, captcha, () => {
+            const validate = validateForgotPassword(phone, async () => {
+                try {
+                    phone = cleanExcessWhiteSpaces(phone)
+                    const checkPhone = await pool.query(GETPHONE, [phone])
+                    if (checkPhone.rowCount === 0) return res.status(412).json({ message: 'Account does not exists', code: '412', data: {} })
+                    const user = checkPhone.rows[0]
+                    await pool.query(CLEAROLDREQUESTS, [user.id])
+                    const timestamp = (new Date()).toISOString()
+                    const uniqueCode = uniqueString()
+                    const hashedCode = hashSync(uniqueCode, SALT)
+                    await pool.query(CREATEREQUEST, [user.id, hashedCode, timestamp])
+                    await needle(
+                        "post", process.env.LMS_MESSENGER_URL,
+                        {
+                            "sender": process.env.LMS_MESSENGER_NAME,
+                            "message": `Good day, ${user.lastname}. Visit ${process.env.LMS_CLIENT_URL}password_reset?code=${uniqueCode}&user=${user.id} to reset your password. The provided link is valid for only two hours. If you did not initiate the request, please disregard this message. For security reasons, it is recommended to log into your account and change your password, as unauthorized access may have occurred.`,
+                            "recipients": [`233${user.phone}`]
+                        },
+                        {
+                            headers: {
+                                'api-key': process.env.LMS_MESSENGER_API_KEY,
+                                'Content-Type': 'application/json'
+                            }
+                        }
+                    )
+                    return res.status(200).json({ message: 'A password reset request was initiated for your account. Kindly check your phone to continue ', code: '200', data: {} })
+                } catch (error) {
+                    return res.status(500).json({ message: WSWW, code: '500', data: {} })
+                }
+            })
+            if (validate !== undefined) return res.status(412).json({ message: validate.error, code: '412', data: {} })
+        })
+    }
+
+    const resetPassword = async (req, res) => {
+        let { password, captcha, code, user } = req.body
+        const expected_payload = ['password', 'password_confirmation', 'captcha', 'code', 'user']
+        const checkPayload = isTrueBodyStructure(req.body, expected_payload)
+        if (!checkPayload) return res.status(400).json({ message: 'Bad request', code: '400', data: {} })
+        if (captcha.length === 0) return res.status(400).json({ message: 'Bad request', code: '400', data: {} })
+        return await BotActionChecker(req, captcha, () => {
+            const validate = passwordResetValidator(req.body, async () => {
+                try {
+                    const result = await pool.query(GETREQUEST, [user])
+                    if (result.rowCount === 0) return res.status(412).json({ message: 'Invalid link followed', code: '412', data: {} })
+                    const dataObj = result.rows[0]
+                    const compareCode = compareSync(code, dataObj.code)
+                    if (!compareCode) return res.status(412).json({ message: 'Invalid link followed', code: '412', data: {} })
+                    const requestTime = moment(dataObj.datetime)
+                    const currentTime = moment((new Date()).toISOString())
+                    const diffTime = currentTime.diff(requestTime, 'minutes')
+                    if (diffTime > 120) {
+                        await pool.query(CLEAROLDREQUESTS, [user])
+                        return res.status(412).json({ message: 'Expired link followed', code: '412', data: {} })
+                    }
+                    const hashedPassword = hashSync(password, SALT)
+                    await pool.query(UPDATEPASSWORD, [hashedPassword, user])
+                    await pool.query(CLEAROLDREQUESTS, [user])
+                    return res.status(200).json({ message: 'Password updated successfully', code: '200', data: {} })
+                } catch (error) {
+                    return res.status(500).json({ message: WSWW, code: '500', data: {} })
+                }
+            })
+            if (validate !== undefined) return res.status(412).json({ message: validate.error, code: '412', data: {} })
+        })
+    }
+
     return {
-        register, resendOTP, verification, login
+        register, resendOTP, verification, login, forgotPassword, resetPassword
     }
 }

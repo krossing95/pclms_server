@@ -1,9 +1,8 @@
 import StringManipulators from "../../helpers/helper.string_methods.js"
-import { Numerical_Entity, Regex } from "../../utils/static/index.js"
+import { Regex } from "../../utils/static/index.js"
 
 export default function AuthValidations() {
-    const { ALPHA, PASSWORD, EMAIL, NUMERICAL, CSVDOT_HYPHEN, MONGOOBJECT } = Regex
-    const { TWOINARRAY } = Numerical_Entity
+    const { ALPHA, PASSWORD, EMAIL, NUMERICAL, MONGOOBJECT } = Regex
     const { cleanExcessWhiteSpaces } = StringManipulators()
     const validateRegistration = (data, next) => {
         let {
@@ -13,7 +12,7 @@ export default function AuthValidations() {
         lastname = cleanExcessWhiteSpaces(lastname)
         phone = cleanExcessWhiteSpaces(phone)
         if (!firstname.match(ALPHA) || !lastname.match(ALPHA)) return { error: 'Only English alphabets and whitespaces allowed for firstname and lastname' }
-        if (!password.match(PASSWORD)) return { error: 'Password must contain alphanumeric and special chars' }
+        if (!password.match(PASSWORD)) return { error: 'The password must include a combination of uppercase and lowercase English letters, at least one digit, and at least one special character' }
         if (!email.match(EMAIL)) return { error: 'Incorrect email address' }
         if (!phone.match(NUMERICAL) || phone.length !== 10 ||
             parseInt(phone.charAt(0)) !== 0
@@ -23,12 +22,13 @@ export default function AuthValidations() {
         if (password !== password_confirmation) return { error: 'Passwords do not match' }
         next()
     }
-    const passwordResetValidator = (user, code, password, password_confirmation, next) => {
-        if (!user.toString().match(MONGOOBJECT) || code.length < 36) return { error: 'Bad request received' }
+    const passwordResetValidator = (data, next) => {
+        const { user, code, password, password_confirmation } = data
+        if (!user.match(MONGOOBJECT) || code.length < 36) return { error: 'No records found' }
         if (password.length < 8) return { error: 'Password must be of at least 8 chars' }
-        if (!password.match(PASSWORD)) return { error: 'Password must contain alphanumeric and special chars' }
+        if (!password.match(PASSWORD)) return { error: 'The password must include a combination of uppercase and lowercase English letters, at least one digit, and at least one special character' }
         if (password !== password_confirmation) return { error: 'Passwords do not match' }
-        return next()
+        next()
     }
     const loginValidator = (phone, password, next) => {
         const cleanedPhoneNumber = cleanExcessWhiteSpaces(phone)
@@ -46,7 +46,7 @@ export default function AuthValidations() {
     }
     const userUpdateValidator = (data, next) => {
         const { firstname, lastname, email, phone, usertype, gender, id } = data
-        if (!id.toString().match(MONGOOBJECT)) return { error: 'Bad request received' }
+        if (!id.toString().match(MONGOOBJECT)) return { error: 'Bad request' }
         if (!firstname.match(ALPHA) || !lastname.match(ALPHA)) return { error: 'Only English alphabets and whitespaces allowed for firstname and lastname' }
         if (!email.match(EMAIL)) return { error: 'Incorrect email address' }
         if (!phone.match(NUMERICAL) || cleanExcessWhiteSpaces(phone).length !== 10 ||
@@ -57,7 +57,14 @@ export default function AuthValidations() {
         if (!['male', 'female'].includes(gender.toLowerCase())) return { error: 'Gender rejected' }
         return next()
     }
+    const validateForgotPassword = (phone, next) => {
+        if (!phone.length) return { error: 'Field is required' }
+        if (!phone.match(NUMERICAL) || phone.length !== 10 ||
+            parseInt(phone.charAt(0)) !== 0) return { error: 'Incorrect phone number' }
+        next()
+    }
     return {
-        validateRegistration, passwordResetValidator, otpValidator, loginValidator, userUpdateValidator
+        validateRegistration, passwordResetValidator, otpValidator, loginValidator, userUpdateValidator,
+        validateForgotPassword
     }
 }

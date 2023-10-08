@@ -20,5 +20,7 @@ usersRoute.delete('/', AdminMiddleware, userControllers.removeUser)
 usersRoute.get('/authed_user', UserMiddleware, userControllers.getAuthedUser)
 usersRoute.patch('/self', UserMiddleware, userControllers.updateAuthedUser)
 usersRoute.patch('/password-update', UserMiddleware, userControllers.passwordUpdate)
+usersRoute.post('/auth/forgot_password', authControllers.forgotPassword)
+usersRoute.post('/auth/reset_password', authControllers.resetPassword)
 
 export default usersRoute
