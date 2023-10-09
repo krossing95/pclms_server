@@ -355,11 +355,11 @@ export default function BookingControllers() {
                 if (getBooking.rowCount !== 1) return res.status(412).json({ message: 'No records found', code: '412', data: {} })
                 const data = getBooking.rows[0]
                 if (data.user_id !== userId) return res.status(412).json({ message: 'Access denied', code: '412', data: {} })
-                if (data.update_count > 3) {
+                if (data.update_count === 3) {
                     await pool.query(bookingQueries.CANCELBOOKING, [3, booking_id])
                     return res.status(412).json({ message: 'Booking was closed due to too many updates on the record', code: '412', data: {} })
                 }
-                if (data.status === 3) return res.status(412).json({ message: 'Cannot update a closed booking', code: '412', data: {} })
+                // if (data.status === 3) return res.status(412).json({ message: 'Cannot update a closed booking', code: '412', data: {} })
                 if (moment(data.date).isBefore(moment(new Date()))) {
                     await pool.query(bookingQueries.CANCELBOOKING, [3, booking_id])
                     return res.status(412).json({ message: 'The scheduled appointment date has elapsed, resulting in automatic closure of the booking', code: '412', data: {} })
@@ -469,8 +469,50 @@ export default function BookingControllers() {
         if (validate !== undefined) return res.status(412).json({ message: validate.error, code: '412', data: {} })
     }
 
+    const assignStatus = async (req, res) => {
+        let { id, status } = req.body
+        const expected_payload = ['id', 'status']
+        const checkPayload = isTrueBodyStructure(req.body, expected_payload)
+        if (!checkPayload) return res.status(400).json({ message: 'Bad request', code: '400', data: {} })
+        const validate = validations.validateStatusAssignment(req.body, async () => {
+            try {
+                const getBooking = await pool.query(bookingQueries.GETBOOKINGFORUPDATE, [false, id])
+                if (getBooking.rowCount !== 1) return res.status(412).json({ message: 'No records found', code: '412', data: {} })
+                const data = getBooking.rows[0]
+                // if (data.status === 3) return res.status(412).json({ message: 'Cannot update a closed booking', code: '412', data: {} })
+                if (moment(data.date).isBefore(moment(new Date()))) {
+                    await pool.query(bookingQueries.CANCELBOOKING, [3, booking_id])
+                    return res.status(412).json({ message: 'Cannot assign a status to a booking that is overdue', code: '412', data: {} })
+                }
+                if (status === data.status) return res.status(412).json({ message: 'No changes found yet', code: '412', data: {} })
+                if (!data.functionality_status || !data.availability_status) return res.status(412).json({ message: 'The equipment is currently not accessible', code: '412', data: {} })
+                const timestamp = (new Date()).toISOString()
+                await pool.query(bookingQueries.ASSIGNSTATUS, [status, timestamp, id])
+                await needle(
+                    "post", process.env.LMS_MESSENGER_URL,
+                    {
+                        "sender": process.env.LMS_MESSENGER_NAME,
+                        "message": `Hi ${data.lastname}, We are glad to notify you that the appointment you scheduled to use our ${data.name} on ${moment((new Date(data.date)).toISOString()).format('ll')} at the following time intervals; ${data.slots.map(t => t)} has been ${status === 1 ? 'made pending due to unforeseen conditions beyond our control. We are therefore sorry for any inconvenience caused you. You may please contact us for more information.' : status === 2 ? 'approved by management. Management will be so glad if you are present before the scheduled time slots. You may please contact us for more information.' : status === 3 ? 'closed or cancelled due to circumstances beyond our control. We are deeply sorry for any inconvenience caused. Kindly contact us for more details.' : '...'}`,
+                        "recipients": [`233${data.phone}`]
+                    },
+                    {
+                        headers: {
+                            'api-key': process.env.LMS_MESSENGER_API_KEY,
+                            'Content-Type': 'application/json'
+                        }
+                    }
+                )
+                return res.status(200).json({ message: 'Status assignment was successful', code: '200', data: {} })
+            } catch (error) {
+                console.log(error);
+                return res.status(500).json({ message: WSWW, code: '500', data: {} })
+            }
+        })
+        if (validate !== undefined) return res.status(412).json({ message: validate.error, code: '412', data: {} })
+    }
+
     return {
         getRequirements, getSlots, bookEquipment, getBookings, getSingleBooking,
-        removeBooking, updateBooking, searchBookings, filterBookings
+        removeBooking, updateBooking, searchBookings, filterBookings, assignStatus
     }
 }

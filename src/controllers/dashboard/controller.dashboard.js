@@ -26,11 +26,17 @@ export default function DashboardController() {
     }
     const FetchAdminData = async () => {
         try {
-            const getData = await pool.query(sqlQuery.GETUSERDATA)
+            const getData = await pool.query(sqlQuery.GETADMINDATA)
             const data = getData.rows[0]
             return {
                 available_equipment: parseInt(data.available_equipment),
-                unavailable_equipment: parseInt(data.unavailable_equipment)
+                unavailable_equipment: parseInt(data.unavailable_equipment),
+                recyclable_equipment: parseInt(data.recyclable_equipment),
+                pending_bookings: parseInt(data.pending_bookings),
+                approved_bookings: parseInt(data.approved_bookings),
+                administrators: parseInt(data.administrators),
+                non_administrators: parseInt(data.non_administrators),
+                blocked_users: parseInt(data.blocked_users),
             }
         } finally {
             console.log(true)

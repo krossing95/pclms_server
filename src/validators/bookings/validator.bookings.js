@@ -37,7 +37,13 @@ export default function BookingsValidations() {
         next()
     }
 
+    const validateStatusAssignment = (data, next) => {
+        const { id, status } = data
+        if (!id.match(regex.MONGOOBJECT) || ![1, 2, 3].includes(Number(status))) return { error: 'Request was rejected' }
+        next()
+    }
+
     return {
-        validateSlotRequest, validateBooking, validateBookingFilter
+        validateSlotRequest, validateBooking, validateBookingFilter, validateStatusAssignment
     }
 }
