@@ -17,5 +17,6 @@ bookingRoute.patch('/', UserMiddleware, bookingMethods.updateBooking)
 bookingRoute.get('/search', UserMiddleware, bookingMethods.searchBookings)
 bookingRoute.get('/filter', UserMiddleware, bookingMethods.filterBookings)
 bookingRoute.patch('/assign_status', AdminMiddleware, bookingMethods.assignStatus)
+bookingRoute.patch('/mark', AdminMiddleware, bookingMethods.markAttendance)
 
 export default bookingRoute

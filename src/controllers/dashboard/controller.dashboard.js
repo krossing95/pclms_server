@@ -36,7 +36,7 @@ export default function DashboardController() {
                 approved_bookings: parseInt(data.approved_bookings),
                 administrators: parseInt(data.administrators),
                 non_administrators: parseInt(data.non_administrators),
-                blocked_users: parseInt(data.blocked_users),
+                blocked_users: parseInt(data.blocked_users)
             }
         } finally {
             console.log(true)

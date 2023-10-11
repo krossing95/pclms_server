@@ -20,7 +20,7 @@ export default function DashboardQuery() {
     WHERE e.is_deleted = false AND b.status = 2 AND b.date >= NOW()) AS approved_bookings,
     (SELECT COUNT(id) FROM users WHERE is_deleted = false AND usertype = 2) AS administrators,
     (SELECT COUNT(id) FROM users WHERE is_deleted = false AND usertype = 1) AS non_administrators,
-    (SELECT COUNT(id) FROM users WHERE is_deleted = false AND usertype = 3) AS blocked_users,
+    (SELECT COUNT(id) FROM users WHERE is_deleted = false AND usertype = 3) AS blocked_users
     `
     return {
         GETUSERDATA, GETADMINDATA

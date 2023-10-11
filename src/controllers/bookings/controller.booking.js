@@ -359,7 +359,9 @@ export default function BookingControllers() {
                     await pool.query(bookingQueries.CANCELBOOKING, [3, booking_id])
                     return res.status(412).json({ message: 'Booking was closed due to too many updates on the record', code: '412', data: {} })
                 }
-                // if (data.status === 3) return res.status(412).json({ message: 'Cannot update a closed booking', code: '412', data: {} })
+                if (request_sender.usertype === process.env.LMS_USER) {
+                    if (data.status === 3) return res.status(412).json({ message: 'Cannot update a closed booking', code: '412', data: {} })
+                }
                 if (moment(data.date).isBefore(moment(new Date()))) {
                     await pool.query(bookingQueries.CANCELBOOKING, [3, booking_id])
                     return res.status(412).json({ message: 'The scheduled appointment date has elapsed, resulting in automatic closure of the booking', code: '412', data: {} })
@@ -504,15 +506,39 @@ export default function BookingControllers() {
                 )
                 return res.status(200).json({ message: 'Status assignment was successful', code: '200', data: {} })
             } catch (error) {
-                console.log(error);
                 return res.status(500).json({ message: WSWW, code: '500', data: {} })
             }
         })
         if (validate !== undefined) return res.status(412).json({ message: validate.error, code: '412', data: {} })
     }
 
+    const markAttendance = async (req, res) => {
+        let { id } = req.body
+        const expected_payload = ['id']
+        const checkPayload = isTrueBodyStructure(req.body, expected_payload)
+        if (!checkPayload) return res.status(400).json({ message: 'Bad request', code: '400', data: {} })
+        if (!id.match(regex.MONGOOBJECT)) return res.status(400).json({ message: 'Bad request', code: '400', data: {} })
+        try {
+            const request_sender = RequestInformation(req, res)
+            const getBooking = await pool.query(bookingQueries.GETBOOKINGFORUPDATE, [false, id])
+            if (getBooking.rowCount !== 1) return res.status(412).json({ message: 'No records found', code: '412', data: {} })
+            const data = getBooking.rows[0]
+            if (data.status !== 2) return res.status(412).json({ message: 'Action denied! Booking is not approved', code: '412', data: {} })
+            if (!moment(data.date).isSameOrBefore(new Date())) return res.status(412).json({ message: 'Scheduled date is not yet due', code: '412', data: {} })
+            if (!Object.keys(request_sender).includes('user_id') ||
+                !Object.keys(request_sender).includes('usertype')) return res.status(401).json({ message: 'Authentication is required', code: '401', data: {} })
+            const userId = request_sender.user_id
+            const has_attended = !data.has_attended
+            await pool.query(bookingQueries.MARKBOOKING, [has_attended, userId, id])
+            return res.status(200).json({ message: `Booking was marked as ${has_attended ? 'attended' : 'unattended'}`, code: '200', data: { has_attended } })
+        } catch (error) {
+            return res.status(500).json({ message: WSWW, code: '500', data: {} })
+        }
+    }
+
     return {
         getRequirements, getSlots, bookEquipment, getBookings, getSingleBooking,
-        removeBooking, updateBooking, searchBookings, filterBookings, assignStatus
+        removeBooking, updateBooking, searchBookings, filterBookings, assignStatus,
+        markAttendance
     }
 }

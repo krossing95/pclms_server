@@ -13,7 +13,7 @@ import { compareSync, genSaltSync, hashSync } from "bcrypt"
 export default function UsersController() {
     const { pool } = DatabaseConnection()
     const WSWW = 'Whoops! Something went wrong'
-    const { PAGINATE_USERS, GETUSERSFORSEARCH, GETUSER, GETPASSWORD, UPDATEPASSWORD, UPDATEUSER, CHECKEQUIPMENTBYUSER, DELETEUSER, CLEARCREDENTIALS } = UsersQuery()
+    const { PAGINATE_USERS, GETUSERSFORSEARCH, GETUSER, GETPASSWORD, UPDATEPASSWORD, UPDATEUSER, CHECKUSERRELATIONS, DELETEUSER, CLEARCREDENTIALS } = UsersQuery()
     const { CHECKUSERINSTANCE } = AuthQuery()
     const { isTrueBodyStructure } = RequestBodyChecker()
     const { cleanSCW, cleanExcessWhiteSpaces } = StringManipulators()
@@ -147,9 +147,9 @@ export default function UsersController() {
         try {
             const checkUser = await pool.query(GETUSER, [id])
             if (checkUser.rowCount === 0) return res.status(412).json({ message: 'No records found', code: '412', data: {} })
-            const checkEquipmentByUser = await pool.query(CHECKEQUIPMENTBYUSER, [id])
-            const count = Number(checkEquipmentByUser.rows[0].equipments_registered_by_user)
-            if (count === 0) return DeleteUser(req, res, id)
+            const checkRelationships = await pool.query(CHECKUSERRELATIONS, [id])
+            const count = checkRelationships.rows[0]
+            if (Number(count.equipments_registered_by_user) === 0 && Number(count.bookings_marked_by_user) === 0) return DeleteUser(req, res, id)
             const anonyms = ''
             await pool.query(CLEARCREDENTIALS, [anonyms, true, id])
             const { pageSize, offset, page } = Setter(params, 1, resultPerPage)
