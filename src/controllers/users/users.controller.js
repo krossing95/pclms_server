@@ -149,7 +149,9 @@ export default function UsersController() {
             if (checkUser.rowCount === 0) return res.status(412).json({ message: 'No records found', code: '412', data: {} })
             const checkRelationships = await pool.query(CHECKUSERRELATIONS, [id])
             const count = checkRelationships.rows[0]
-            if (Number(count.equipments_registered_by_user) === 0 && Number(count.bookings_marked_by_user) === 0) return DeleteUser(req, res, id)
+            if (Number(count.equipments_registered_by_user) === 0 &&
+                Number(count.bookings_marked_by_user) === 0 &&
+                Number(count.bookings_by_user) === 0) return DeleteUser(req, res, id)
             const anonyms = ''
             await pool.query(CLEARCREDENTIALS, [anonyms, true, id])
             const { pageSize, offset, page } = Setter(params, 1, resultPerPage)

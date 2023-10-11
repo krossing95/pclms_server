@@ -33,4 +33,6 @@ equipmentRouter.post('/save', UserMiddleware, equipmentControllers.saveEquipment
 equipmentRouter.get('/hidden', hiddenEquipmentControllers.getHiddenEquipment)
 equipmentRouter.get('/hidden/search', hiddenEquipmentControllers.searchHiddenEquipment)
 equipmentRouter.patch('/hidden', AdminMiddleware, hiddenEquipmentControllers.retrieveHiddenEquipment)
+equipmentRouter.delete('/hidden', AdminMiddleware, hiddenEquipmentControllers.clearHiddenEquipment)
+equipmentRouter.delete('/hidden/single', AdminMiddleware, hiddenEquipmentControllers.removeHiddenEquipment)
 export default equipmentRouter

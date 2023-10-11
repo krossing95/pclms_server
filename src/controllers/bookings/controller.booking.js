@@ -282,6 +282,13 @@ export default function BookingControllers() {
             const getBooking = await pool.query(bookingQueries.GETBOOKING, [false, booking_id])
             if (getBooking.rowCount === 0) return res.status(412).json({ message: 'No records found', code: '412', data: {} })
             const data = getBooking.rows[0]
+            if (data.has_attended) {
+                await pool.query(`UPDATE bookings SET is_deleted = true WHERE id = $1`, [booking_id])
+                return res.status(200).json({
+                    message: `Record was ${usertype === Number(process.env.LMS_ADMIN) ? 'trashed into bin' : 'removed successfully'}`, code: '200',
+                    data: {}
+                })
+            }
             if (usertype === Number(process.env.LMS_ADMIN)) return RemoveBooking(res, booking_id)
             if (data.user_id !== userId) return res.status(412).json({ message: 'Access denied', code: '412', data: {} })
             return RemoveBooking(res, booking_id)
@@ -481,10 +488,11 @@ export default function BookingControllers() {
                 const getBooking = await pool.query(bookingQueries.GETBOOKINGFORUPDATE, [false, id])
                 if (getBooking.rowCount !== 1) return res.status(412).json({ message: 'No records found', code: '412', data: {} })
                 const data = getBooking.rows[0]
-                // if (data.status === 3) return res.status(412).json({ message: 'Cannot update a closed booking', code: '412', data: {} })
-                if (moment(data.date).isBefore(moment(new Date()))) {
-                    await pool.query(bookingQueries.CANCELBOOKING, [3, booking_id])
-                    return res.status(412).json({ message: 'Cannot assign a status to a booking that is overdue', code: '412', data: {} })
+                if (data.has_attended || moment(data.date).isBefore(moment(new Date()))) {
+                    if (data.status !== 3) {
+                        await pool.query(bookingQueries.CANCELBOOKING, [3, booking_id])
+                    }
+                    return res.status(412).json({ message: 'Cannot assign status to this booking', code: '412', data: {} })
                 }
                 if (status === data.status) return res.status(412).json({ message: 'No changes found yet', code: '412', data: {} })
                 if (!data.functionality_status || !data.availability_status) return res.status(412).json({ message: 'The equipment is currently not accessible', code: '412', data: {} })
@@ -523,7 +531,7 @@ export default function BookingControllers() {
             const getBooking = await pool.query(bookingQueries.GETBOOKINGFORUPDATE, [false, id])
             if (getBooking.rowCount !== 1) return res.status(412).json({ message: 'No records found', code: '412', data: {} })
             const data = getBooking.rows[0]
-            if (data.status !== 2) return res.status(412).json({ message: 'Action denied! Booking is not approved', code: '412', data: {} })
+            if (![2, 3].includes(data.status)) return res.status(412).json({ message: 'Cannot execute this action', code: '412', data: {} })
             if (!moment(data.date).isSameOrBefore(new Date())) return res.status(412).json({ message: 'Scheduled date is not yet due', code: '412', data: {} })
             if (!Object.keys(request_sender).includes('user_id') ||
                 !Object.keys(request_sender).includes('usertype')) return res.status(401).json({ message: 'Authentication is required', code: '401', data: {} })

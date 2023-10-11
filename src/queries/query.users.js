@@ -11,7 +11,8 @@ export default function UsersQuery() {
     const CHECKUSERRELATIONS = `SELECT
     (SELECT COUNT(e.id) FROM equipment e INNER JOIN users u ON 
     e.created_by = u.id WHERE u.id = $1)  AS equipments_registered_by_user,
-    (SELECT COUNT(b.id) FROM bookings b WHERE b.marked_by = $1) AS bookings_marked_by_user`
+    (SELECT COUNT(b.id) FROM bookings b WHERE b.marked_by = $1) AS bookings_marked_by_user,
+    (SELECT COUNT(b.id) FROM bookings b WHERE b.user_id = $1) AS bookings_by_user`
 
     const DELETEUSER = `DELETE FROM users WHERE id = $1`
     const GETPASSWORD = `SELECT password FROM users WHERE id = $1`

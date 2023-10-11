@@ -98,7 +98,43 @@ export default function HiddenEquipmentControllers() {
         }
     }
 
+    const clearHiddenEquipment = async (req, res) => {
+        try {
+            await pool.query(`DELETE FROM equipment WHERE is_deleted = true`)
+            return res.status(200).json({
+                message: 'Bin cleared successfully', code: '200', data: {}
+            })
+        } catch (error) {
+            return res.status(500).json({ message: WSWW, code: '500', data: {} })
+        }
+    }
+
+    const removeHiddenEquipment = async (req, res) => {
+        const params = new URLSearchParams(url.parse(req.url, true).query)
+        if (!params.get('id')) return res.status(400).json({ message: 'Bad request', code: '400', data: {} })
+        const id = params.get('id')
+        if (!id.match(regex.MONGOOBJECT)) return res.status(400).json({ message: 'Bad request', code: '400', data: {} })
+        try {
+            await pool.query(`DELETE FROM equipment WHERE id = $1`, [id])
+            const { pageSize, page, offset } = Setter(params, 1, resultPerPage)
+            const paginationData = await GetPageParams(pageSize, 'equipment', `is_deleted = true`)
+            const collection = await pool.query(hiddenEquipmentQueries.PAGINATE_HIDDEN_EQUIPMENT, [pageSize, offset])
+            return res.status(200).json({
+                message: 'Records was permanently removed', code: '200', data: {
+                    equipment: [...collection.rows],
+                    page_data: {
+                        ...paginationData, currentPage: page, pageSize
+                    },
+                    data_type: ''
+                }
+            })
+        } catch (error) {
+            return res.status(500).json({ message: WSWW, code: '500', data: {} })
+        }
+    }
+
     return {
-        getHiddenEquipment, searchHiddenEquipment, retrieveHiddenEquipment
+        getHiddenEquipment, searchHiddenEquipment, retrieveHiddenEquipment, clearHiddenEquipment,
+        removeHiddenEquipment
     }
 }
