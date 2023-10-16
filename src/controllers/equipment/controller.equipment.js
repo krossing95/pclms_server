@@ -286,10 +286,15 @@ export default function EquipmentController() {
         if (!params.get('id')) return res.status(400).json({ message: 'Bad request', code: '400', data: {} })
         const id = params.get('id')
         try {
+            const equipment = await pool.query(GETEQUIPMENT, [id])
+            if (equipment.rowCount === 0) return res.status(412).json({ message: 'Record not found', code: '412', data: {} })
             const countBookingsOnEquipment = await pool.query(COUNTRELATEDBOOKINGS, [id, 3])
             const totalResult = parseInt(countBookingsOnEquipment.rows[0].related_bookings)
             if (totalResult > 0) return ExecuteSoftDelete(res, id, 'equipment')
-            // await ImageDestroy()
+            const equipmentData = equipment.rows[0]
+            if (equipmentData.photo_id) {
+                await ImageDestroy(equipmentData.photo_id)
+            }
             await pool.query(REMOVEEQUIPMENT, [id])
             return res.status(200).json({ message: 'Record removed successfully', code: '200', data: {} })
         } catch (error) {
